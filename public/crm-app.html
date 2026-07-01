@@ -1,6 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+(function(){
+  var pending = {};
+  var seq = 0;
+  window.addEventListener('message', function(e){
+    var d = e.data || {};
+    if(d && d.__crmReply && pending[d.id]){
+      pending[d.id](d.value);
+      delete pending[d.id];
+    }
+  });
+  function call(op, key, value){
+    return new Promise(function(res){
+      var id = ++seq;
+      pending[id] = res;
+      parent.postMessage({__crmCall:true, id:id, op:op, key:key, value:value}, '*');
+    });
+  }
+  window.storage = {
+    get: function(key){ return call('get', key).then(function(v){ return v; }); },
+    set: function(key, value){ return call('set', key, value); }
+  };
+})();
+</script>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MPPT Care — Solar Service CRM</title>
