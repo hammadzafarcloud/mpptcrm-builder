@@ -1559,7 +1559,7 @@ function updateWhatsAppPreview(lead){
   const msg = buildWhatsAppMessage(lead);
   document.getElementById('wa-preview-text').textContent = msg;
   const digits = (lead.phone||'').replace(/\D/g,'');
-  document.getElementById('d-whatsapp-link').href = `https://wa.me/${digits}?text=${encodeURIComponent(msg)}`;
+  document.getElementById('d-whatsapp-link').href = `https://web.whatsapp.com/send?phone=${digits}&text=${encodeURIComponent(msg)}`;
 }
 function buildWhatsAppMessage(lead){
   return `Hi ${lead.name}, this is ${state.settings.company} regarding your ${lead.systemType.toLowerCase()} request in ${lead.area||'your area'}.\n\nWe have your request noted: "${lead.issue||'—'}".\n\nCurrent status: ${stageLabel(lead.stage)}. Let us know a good time to speak — thank you!`;
@@ -1751,7 +1751,7 @@ function renderVisits(){
             <div class="visit-actions">
               ${v.status==='Scheduled' ? `<button class="btn btn-green btn-sm visit-complete" data-id="${v.id}">Mark complete</button>
               <button class="btn btn-danger btn-sm visit-cancel" data-id="${v.id}">Cancel</button>` : ''}
-              <a class="btn btn-whatsapp btn-sm" target="_blank" href="https://wa.me/${(v.leadPhone||'').replace(/\D/g,'')}?text=${encodeURIComponent('Hi '+v.leadName+', this is '+state.settings.company+'. Confirming your '+v.purpose.toLowerCase()+' visit on '+fmtDate(new Date(v.date).getTime())+' at '+v.time+'. See you then!')}">Remind</a>
+              <a class="btn btn-whatsapp btn-sm" target="_blank" href="https://web.whatsapp.com/send?phone=${(v.leadPhone||'').replace(/\D/g,'')}&text=${encodeURIComponent('Hi '+v.leadName+', this is '+state.settings.company+'. Confirming your '+v.purpose.toLowerCase()+' visit on '+fmtDate(new Date(v.date).getTime())+' at '+v.time+'. See you then!')}">Remind</a>
             </div>
           </div>
         `;}).join('')}
@@ -2172,7 +2172,7 @@ function renderFinance(){
       <div><div class="who">${i.leadName}</div><div class="meta">#MPPT-${String(i.id).padStart(4,'0')} · ${days}d outstanding</div></div>
       <div style="display:flex;align-items:center;gap:8px;">
         <div style="font-family:var(--font-mono);font-weight:600;color:var(--terracotta)">${fmtMoney(due)}</div>
-        <a class="btn btn-whatsapp btn-sm" target="_blank" href="https://wa.me/${(i.leadPhone||'').replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}">Remind</a>
+        <a class="btn btn-whatsapp btn-sm" target="_blank" href="https://web.whatsapp.com/send?phone=${(i.leadPhone||'').replace(/\D/g,'')}&text=${encodeURIComponent(waMsg)}">Remind</a>
       </div>
     </div>`;
   }).join('') : emptyMsg('All invoices settled — nice work.');
