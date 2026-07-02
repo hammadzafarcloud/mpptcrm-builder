@@ -18,7 +18,22 @@ function CrmHost() {
 
     async function handler(e: MessageEvent) {
       const msg = e.data;
-      if (!msg || !msg.__crmCall) return;
+      if (!msg) return;
+
+      if (msg.__crmExternalUrl && typeof msg.url === "string") {
+        try {
+          const url = new URL(msg.url);
+          const allowedHosts = new Set(["web.whatsapp.com", "api.whatsapp.com", "wa.me"]);
+          if (url.protocol === "https:" && allowedHosts.has(url.hostname)) {
+            window.location.assign(url.toString());
+          }
+        } catch {
+          // Ignore malformed external URLs.
+        }
+        return;
+      }
+
+      if (!msg.__crmCall) return;
       const userId = await getUserId();
       if (!userId) return;
       const source = e.source as Window | null;

@@ -25,18 +25,13 @@
   };
 
   function openExternalUrl(url){
-    var opened = null;
     try{
-      if(window.parent && window.parent !== window && typeof window.parent.open === 'function'){
-        opened = window.parent.open(url, '_blank', 'noopener,noreferrer');
+      if(window.parent && window.parent !== window){
+        window.parent.postMessage({__crmExternalUrl:true, url:url}, '*');
+        return;
       }
     }catch(err){}
-    if(!opened){
-      opened = window.open(url, '_blank', 'noopener,noreferrer');
-    }
-    if(!opened){
-      window.location.href = url;
-    }
+    window.location.href = url;
   }
 
   document.addEventListener('click', function(e){
