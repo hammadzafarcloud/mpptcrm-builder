@@ -25,7 +25,7 @@ function CrmHost() {
           const url = new URL(msg.url);
           const allowedHosts = new Set(["web.whatsapp.com", "api.whatsapp.com", "wa.me"]);
           if (url.protocol === "https:" && allowedHosts.has(url.hostname)) {
-            window.location.assign(url.toString());
+            window.open(url.toString(), "_blank", "noopener,noreferrer");
           }
         } catch {
           // Ignore malformed external URLs.
