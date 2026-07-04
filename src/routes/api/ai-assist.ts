@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 type Body = {
-  action: "briefing" | "suggest_followups" | "draft_message";
+  action: "briefing" | "suggest_followups" | "draft_message" | "ask_crm";
   payload?: any;
 };
 
@@ -22,6 +22,18 @@ Return STRICT JSON only, no prose, shape:
 {"suggestions":[{"leadId": number, "title": string, "priority": "High"|"Medium"|"Low", "dueInDays": number, "category": "Follow-up"|"Callback"|"Quote follow-up"|"Payment reminder", "reason": string}]}
 Max 6 suggestions. Skip leads that already have an open task.`;
   }
+  if (action === "ask_crm") {
+    return `You are an assistant for a solar CRM ("Ask your CRM"). The user asks a natural-language question about their business data. A JSON snapshot of the CRM is provided (leads, tasks, visits, quotes, invoices, team, settings).
+
+Rules:
+- Answer ONLY from the provided data. If the data doesn't contain the answer, say so plainly.
+- Be concise: at most ~150 words.
+- Prefer short bullet lists with names, phones, amounts, due dates.
+- Use the currency symbol found in settings.currency if present, otherwise no currency symbol.
+- Format in Markdown. Use **bold** for names/amounts.
+- If the question is ambiguous, answer the most reasonable interpretation and note the assumption in one line.
+- Never invent leads, quotes or numbers.`;
+  }
   return `You are writing a short, warm, professional follow-up message from a solar company to a customer.
 - Channel: WhatsApp/SMS (plain text, no markdown).
 - Language: match the customer name; default English, keep it simple.
@@ -29,6 +41,7 @@ Max 6 suggestions. Skip leads that already have an open task.`;
 - Sign off with the company name.
 Return only the message text.`;
 }
+
 
 export const Route = createFileRoute("/api/ai-assist")({
   server: {
