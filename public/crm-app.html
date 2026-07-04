@@ -754,6 +754,39 @@ tbody tr:hover{background:var(--paper-2);}
         </div>
       </div>
 
+      <!-- EXPENSES -->
+      <div class="view" id="view-expenses">
+        <div class="readout-grid" id="exp-readouts" style="grid-template-columns:repeat(4,1fr);"></div>
+        <div class="table-toolbar" style="flex-wrap:wrap;gap:8px;margin-top:14px;">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <input type="text" id="exp-search" placeholder="Search description, notes, vendor…">
+          </div>
+          <select id="exp-filter-member" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;"><option value="">All team members</option></select>
+          <select id="exp-filter-cat2" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;">
+            <option value="">All categories</option>
+            <option>Materials</option><option>Labor</option><option>Transport</option>
+            <option>Fuel</option><option>Food / Refreshment</option><option>Tools</option>
+            <option>Permits / Net Metering</option><option>Rent / Utility</option><option>Misc</option>
+          </select>
+          <select id="exp-filter-site" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;"><option value="">All sites</option></select>
+          <select id="exp-filter-range" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;">
+            <option value="all">All time</option>
+            <option value="today">Today</option>
+            <option value="7">Last 7 days</option>
+            <option value="30" selected>Last 30 days</option>
+            <option value="month">This month</option>
+          </select>
+          <div style="flex:1"></div>
+          <button class="btn btn-amber btn-sm" id="btn-new-expense">+ Add expense</button>
+        </div>
+        <div class="card" style="margin-top:12px;padding:0;overflow:hidden;">
+          <div id="exp-table"></div>
+        </div>
+      </div>
+
+
+
       <!-- FINANCE -->
       <div class="view" id="view-finance">
         <div class="readout-grid" id="finance-readouts" style="grid-template-columns:repeat(4,1fr);"></div>
