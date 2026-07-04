@@ -3837,6 +3837,244 @@ window.__inv = {
   detail: openProductDetail
 };
 
+/* ============================= EXPENSES ============================= */
+let __expenseEditId = null;
+let __expenseImg = null; // dataURL pending save
+
+function updateExpTodayBadge(){
+  const el = document.getElementById('nav-exp-today');
+  if(!el) return;
+  const t0 = new Date(); t0.setHours(0,0,0,0);
+  const n = (state.expenses||[]).filter(e=>e.date>=t0.getTime()).length;
+  el.textContent = n;
+  el.style.background = n ? '#F5B841' : '#94a3b8';
+  el.style.color = '#1a1a1a';
+}
+
+function renderExpenses(){
+  if(!state.expenses) state.expenses = [];
+  updateExpTodayBadge();
+
+  // Populate filters
+  const memSel = document.getElementById('exp-filter-member');
+  memSel.innerHTML = '<option value="">All team members</option>' +
+    (state.team||[]).map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+  const siteSel = document.getElementById('exp-filter-site');
+  siteSel.innerHTML = '<option value="">All sites</option>' +
+    (state.leads||[]).map(l=>`<option value="${l.id}">${escapeHtml(l.name)}</option>`).join('');
+
+  const q = (document.getElementById('exp-search').value||'').toLowerCase().trim();
+  const memF = document.getElementById('exp-filter-member').value;
+  const catF = document.getElementById('exp-filter-cat2').value;
+  const siteF = document.getElementById('exp-filter-site').value;
+  const rangeF = document.getElementById('exp-filter-range').value;
+
+  const now = new Date();
+  const t0 = new Date(); t0.setHours(0,0,0,0);
+  let cutoff = 0;
+  if(rangeF==='today') cutoff = t0.getTime();
+  else if(rangeF==='7') cutoff = Date.now() - 7*86400000;
+  else if(rangeF==='30') cutoff = Date.now() - 30*86400000;
+  else if(rangeF==='month'){ const m = new Date(now.getFullYear(), now.getMonth(), 1); cutoff = m.getTime(); }
+
+  let list = [...(state.expenses||[])].sort((a,b)=>b.date-a.date);
+  if(cutoff) list = list.filter(e=>e.date>=cutoff);
+  if(q) list = list.filter(e=> (e.desc||'').toLowerCase().includes(q) || (e.notes||'').toLowerCase().includes(q) || (e.vendor||'').toLowerCase().includes(q));
+  if(memF) list = list.filter(e=> String(e.memberId||'')===memF);
+  if(catF) list = list.filter(e=> e.category===catF);
+  if(siteF) list = list.filter(e=> String(e.leadId||'')===siteF);
+
+  // Readouts (based on filtered list)
+  const total = list.reduce((s,e)=>s+(e.amount||0),0);
+  const todayTotal = list.filter(e=>e.date>=t0.getTime()).reduce((s,e)=>s+(e.amount||0),0);
+  const withReceipt = list.filter(e=>e.receipt).length;
+  const uniqueSites = new Set(list.filter(e=>e.leadId).map(e=>e.leadId)).size;
+  document.getElementById('exp-readouts').innerHTML = [
+    {label:'Total (filtered)', value: fmtMoney(total)},
+    {label:'Today', value: fmtMoney(todayTotal)},
+    {label:'Entries', value: String(list.length)},
+    {label:'With receipt', value: withReceipt+' / '+list.length},
+  ].map(r=>`<div class="readout"><div class="readout-label">${r.label}</div><div class="readout-value">${r.value}</div></div>`).join('') +
+    `<div class="readout" style="grid-column:auto;"><div class="readout-label">Sites covered</div><div class="readout-value">${uniqueSites}</div></div>`;
+
+  const wrap = document.getElementById('exp-table');
+  if(!list.length){ wrap.innerHTML = emptyMsg('No expenses match — try clearing filters or add a new one.'); return; }
+  wrap.innerHTML = `
+    <table>
+      <thead><tr>
+        <th style="width:60px;">Bill</th><th>Description</th><th>Category</th><th>Paid by</th><th>Site</th><th>Method</th><th>Date</th><th>Amount</th><th></th>
+      </tr></thead>
+      <tbody>
+        ${list.map(e=>{
+          const lead = e.leadId ? (state.leads||[]).find(l=>l.id===e.leadId) : null;
+          const mem = e.memberId ? (state.team||[]).find(m=>m.id===e.memberId) : null;
+          const thumb = e.receipt
+            ? `<img src="${e.receipt}" alt="receipt" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--line);cursor:zoom-in;" onclick="window.__exp.view(${e.id})">`
+            : `<div style="width:44px;height:44px;border-radius:6px;border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:11px;">—</div>`;
+          return `<tr>
+            <td>${thumb}</td>
+            <td><div style="font-weight:600;">${escapeHtml(e.desc||'')}</div>${e.vendor?`<div class="cell-sub">${escapeHtml(e.vendor)}</div>`:''}</td>
+            <td><span class="badge" style="background:var(--paper-2);color:var(--ink-soft)">${escapeHtml(e.category||'Misc')}</span></td>
+            <td>${mem?escapeHtml(mem.name):'—'}</td>
+            <td>${lead?escapeHtml(lead.name):'—'}</td>
+            <td class="cell-sub">${escapeHtml(e.method||'—')}</td>
+            <td class="cell-sub">${fmtDate(e.date)}</td>
+            <td style="font-family:var(--font-mono);font-weight:600;">${fmtMoney(e.amount)}</td>
+            <td style="text-align:right;white-space:nowrap;">
+              <button class="btn btn-outline btn-sm" onclick="window.__exp.edit(${e.id})">Edit</button>
+              <button class="btn btn-outline btn-sm" onclick="window.__exp.remove(${e.id})">Delete</button>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+function openExpenseModal(id){
+  __expenseEditId = id || null;
+  __expenseImg = null;
+  const memSel = document.getElementById('ex-member');
+  memSel.innerHTML = '<option value="">— select —</option>' + (state.team||[]).map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+  const leadSel = document.getElementById('ex-lead2');
+  leadSel.innerHTML = '<option value="">— none —</option>' + (state.leads||[]).map(l=>`<option value="${l.id}">${escapeHtml(l.name)}</option>`).join('');
+  const today = new Date().toISOString().slice(0,10);
+  const preview = document.getElementById('ex-preview');
+  const fileInput = document.getElementById('ex-file');
+  fileInput.value = '';
+
+  if(id){
+    const e = (state.expenses||[]).find(x=>x.id===id);
+    if(!e) return;
+    document.getElementById('ex-modal-title').textContent = 'Edit expense';
+    document.getElementById('ex-desc').value = e.desc||'';
+    document.getElementById('ex-category').value = e.category||'Misc';
+    document.getElementById('ex-amount').value = e.amount||'';
+    document.getElementById('ex-date').value = new Date(e.date||Date.now()).toISOString().slice(0,10);
+    memSel.value = e.memberId||'';
+    leadSel.value = e.leadId||'';
+    document.getElementById('ex-method').value = e.method||'Cash';
+    document.getElementById('ex-vendor').value = e.vendor||'';
+    document.getElementById('ex-notes').value = e.notes||'';
+    __expenseImg = e.receipt || null;
+    preview.innerHTML = e.receipt ? `<img src="${e.receipt}" style="max-width:100%;max-height:220px;border-radius:8px;border:1px solid var(--line);"><div style="margin-top:6px;"><button class="btn btn-outline btn-sm" type="button" onclick="window.__exp.clearImg()">Remove receipt</button></div>` : '';
+  } else {
+    document.getElementById('ex-modal-title').textContent = 'Add expense';
+    document.getElementById('ex-desc').value = '';
+    document.getElementById('ex-category').value = 'Materials';
+    document.getElementById('ex-amount').value = '';
+    document.getElementById('ex-date').value = today;
+    memSel.value = state.currentUserId || '';
+    leadSel.value = '';
+    document.getElementById('ex-method').value = 'Cash';
+    document.getElementById('ex-vendor').value = '';
+    document.getElementById('ex-notes').value = '';
+    preview.innerHTML = '';
+  }
+  openModal('modal-expense');
+}
+
+function compressImageFile(file, maxDim, quality){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      const img = new Image();
+      img.onload = ()=>{
+        let {width, height} = img;
+        if(width > maxDim || height > maxDim){
+          if(width >= height){ height = Math.round(height * maxDim / width); width = maxDim; }
+          else { width = Math.round(width * maxDim / height); height = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+document.addEventListener('change', async (ev)=>{
+  if(ev.target && ev.target.id === 'ex-file'){
+    const f = ev.target.files && ev.target.files[0];
+    if(!f) return;
+    try{
+      const dataUrl = await compressImageFile(f, 1400, 0.78);
+      __expenseImg = dataUrl;
+      document.getElementById('ex-preview').innerHTML =
+        `<img src="${dataUrl}" style="max-width:100%;max-height:220px;border-radius:8px;border:1px solid var(--line);"><div style="margin-top:6px;"><button class="btn btn-outline btn-sm" type="button" onclick="window.__exp.clearImg()">Remove receipt</button></div>`;
+    }catch(e){ toast('Could not read image', 'info'); }
+  }
+});
+
+async function saveExpenseFromModal(){
+  const desc = document.getElementById('ex-desc').value.trim();
+  const amount = parseFloat(document.getElementById('ex-amount').value)||0;
+  if(!desc || amount<=0){ toast('Enter description and amount', 'info'); return; }
+  const category = document.getElementById('ex-category').value;
+  const dateStr = document.getElementById('ex-date').value;
+  const date = dateStr ? new Date(dateStr).getTime() : Date.now();
+  const memberId = parseInt(document.getElementById('ex-member').value)||null;
+  const leadId = parseInt(document.getElementById('ex-lead2').value)||null;
+  const method = document.getElementById('ex-method').value;
+  const vendor = document.getElementById('ex-vendor').value.trim();
+  const notes = document.getElementById('ex-notes').value.trim();
+
+  if(__expenseEditId){
+    const e = state.expenses.find(x=>x.id===__expenseEditId);
+    if(e){ Object.assign(e, { desc, category, amount, date, memberId, leadId, method, vendor, notes, receipt: __expenseImg||null, updatedAt: Date.now() }); }
+  } else {
+    state.expenses.push({
+      id: state.nextExpenseId++,
+      desc, category, amount, date, memberId, leadId, method, vendor, notes,
+      receipt: __expenseImg||null,
+      createdAt: Date.now()
+    });
+  }
+  await saveState();
+  closeModal('modal-expense');
+  renderExpenses();
+  toast('Expense saved');
+}
+
+async function deleteExpense(id){
+  if(!confirm('Delete this expense?')) return;
+  state.expenses = state.expenses.filter(e=>e.id!==id);
+  await saveState(); renderExpenses(); toast('Expense deleted');
+}
+
+function viewExpenseReceipt(id){
+  const e = (state.expenses||[]).find(x=>x.id===id);
+  if(!e || !e.receipt) return;
+  document.getElementById('exv-title').textContent = e.desc||'Receipt';
+  document.getElementById('exv-body').innerHTML = `<img src="${e.receipt}" style="max-width:100%;max-height:70vh;border-radius:8px;">`;
+  openModal('modal-expense-view');
+}
+
+window.__exp = {
+  edit: openExpenseModal,
+  remove: deleteExpense,
+  view: viewExpenseReceipt,
+  clearImg: ()=>{ __expenseImg=null; document.getElementById('ex-preview').innerHTML=''; document.getElementById('ex-file').value=''; }
+};
+
+document.addEventListener('click', (ev)=>{
+  const t = ev.target;
+  if(!t) return;
+  if(t.id === 'btn-new-expense'){ openExpenseModal(null); }
+  if(t.id === 'btn-save-expense'){ saveExpenseFromModal(); }
+});
+['exp-search','exp-filter-member','exp-filter-cat2','exp-filter-site','exp-filter-range'].forEach(id=>{
+  document.addEventListener('input', (ev)=>{ if(ev.target && ev.target.id===id) renderExpenses(); });
+  document.addEventListener('change', (ev)=>{ if(ev.target && ev.target.id===id) renderExpenses(); });
+});
+
+
+
 /* ============================= INIT ============================= */
 async function init(){
   document.getElementById('brand-logo-img').src = LOGO_DATA_URI;
