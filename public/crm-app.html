@@ -2672,7 +2672,8 @@ function renderTasks(){
             ${assignee?`<span>👷 ${assignee.name}</span>`:''}
           </div>
         </div>
-        <div style="display:flex;gap:6px;flex-shrink:0;">
+        <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
+          ${lead?`<button class="btn btn-outline btn-sm" onclick="window.__tasks.draft(${t.id})" title="AI drafts a follow-up message">✨ Draft</button>`:''}
           ${lead&&lead.phone?`<a class="btn btn-outline btn-sm" href="tel:${lead.phone}">Call</a>`:''}
           ${waHref?`<a class="btn btn-whatsapp btn-sm" target="_blank" rel="noopener noreferrer" href="${waHref}">WhatsApp</a>`:''}
           <button class="btn btn-outline btn-sm" onclick="window.__tasks.edit(${t.id})">Edit</button>
