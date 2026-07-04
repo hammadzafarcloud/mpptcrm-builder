@@ -966,6 +966,11 @@ async function loadState(){
     if(r && r.value){
       const parsed = JSON.parse(r.value);
       state = Object.assign(state, parsed);
+      // Migrate legacy brand name
+      if(state.settings && state.settings.company === 'MPPT Care'){
+        state.settings.company = 'Solar Care CRM';
+        try{ await saveState(); }catch(e){}
+      }
       return true;
     }
   }catch(e){ /* no saved state yet */ }
