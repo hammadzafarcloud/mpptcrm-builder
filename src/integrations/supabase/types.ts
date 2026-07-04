@@ -14,6 +14,104 @@ export type Database = {
   }
   public: {
     Tables: {
+      booking_links: {
+        Row: {
+          active: boolean
+          branding: Json
+          created_at: string
+          id: string
+          owner_id: string
+          services: Json
+          title: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          branding?: Json
+          created_at?: string
+          id?: string
+          owner_id: string
+          services?: Json
+          title?: string
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          branding?: Json
+          created_at?: string
+          id?: string
+          owner_id?: string
+          services?: Json
+          title?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      booking_submissions: {
+        Row: {
+          client_address: string | null
+          client_email: string | null
+          client_name: string
+          client_phone: string | null
+          created_at: string
+          id: string
+          items: Json
+          link_id: string
+          notes: string | null
+          owner_id: string
+          status: string
+          subtotal: number
+          tax: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          client_address?: string | null
+          client_email?: string | null
+          client_name: string
+          client_phone?: string | null
+          created_at?: string
+          id?: string
+          items?: Json
+          link_id: string
+          notes?: string | null
+          owner_id: string
+          status?: string
+          subtotal?: number
+          tax?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          client_address?: string | null
+          client_email?: string | null
+          client_name?: string
+          client_phone?: string | null
+          created_at?: string
+          id?: string
+          items?: Json
+          link_id?: string
+          notes?: string | null
+          owner_id?: string
+          status?: string
+          subtotal?: number
+          tax?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_submissions_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "booking_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_kv: {
         Row: {
           key: string
