@@ -2756,6 +2756,118 @@ async function aiDraftForTask(taskId){
 document.getElementById('btn-ai-briefing').addEventListener('click', aiDailyBriefing);
 document.getElementById('btn-ai-suggest').addEventListener('click', aiSuggestFollowups);
 
+/* ============================= ASK YOUR CRM ============================= */
+window.__askHistory = [];
+
+function buildCrmSnapshot(){
+  // Compact snapshot — avoid sending huge blobs
+  const leads = (state.leads||[]).map(l=>({
+    id:l.id, name:l.name, phone:l.phone, area:l.area, source:l.source, stage:l.stage,
+    createdAt:l.createdAt, lastContactedAt:l.lastContactedAt||null,
+    assigneeId:l.assigneeId||null, notes:(l.notes||'').slice(0,300)
+  }));
+  const tasks = (state.tasks||[]).map(t=>({
+    id:t.id, title:t.title, leadId:t.leadId, assigneeId:t.assigneeId,
+    due:t.due, dueTime:t.dueTime, priority:t.priority, category:t.category,
+    done:!!t.done, notes:(t.notes||'').slice(0,200)
+  }));
+  const visits = (state.visits||[]).map(v=>({
+    id:v.id, leadId:v.leadId, date:v.date, time:v.time, status:v.status, technicianId:v.technicianId
+  }));
+  const quotes = (state.quotes||[]).map(q=>({
+    id:q.id, leadId:q.leadId, total:q.total, status:q.status, createdAt:q.createdAt
+  }));
+  const invoices = (state.invoices||[]).map(i=>({
+    id:i.id, leadId:i.leadId, number:i.number, total:i.total, paid:i.paid,
+    status:i.status, dueDate:i.dueDate, createdAt:i.createdAt
+  }));
+  const team = (state.team||[]).map(m=>({ id:m.id, name:m.name, role:m.role }));
+  return {
+    today: new Date().toISOString(),
+    settings: { company: state.settings.company, currency: state.settings.currency||'₹' },
+    counts: { leads:leads.length, tasks:tasks.length, visits:visits.length, quotes:quotes.length, invoices:invoices.length },
+    team, leads, tasks, visits, quotes, invoices
+  };
+}
+
+function renderAskChat(){
+  const items = window.__askHistory;
+  const suggestions = [
+    'Who hasn\'t been contacted in 10 days?',
+    'Which invoices are overdue?',
+    'Which quotes above 200000 are still pending?',
+    'Top 5 hottest leads right now',
+    'How many site visits are scheduled this week?'
+  ];
+  const chips = items.length ? '' : `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">
+    ${suggestions.map(s=>`<button class="ask-chip" data-q="${esc(s)}" style="background:var(--navy-1);border:1px solid var(--line);color:var(--ink-soft);padding:6px 10px;border-radius:999px;font-size:12px;cursor:pointer;">${esc(s)}</button>`).join('')}
+  </div>`;
+  const bubbles = items.map(m=>{
+    if(m.role==='user'){
+      return `<div style="display:flex;justify-content:flex-end;margin:8px 0;"><div style="background:#F5B84122;border:1px solid #F5B84155;color:var(--ink);padding:8px 12px;border-radius:12px 12px 2px 12px;max-width:80%;font-size:13.5px;">${esc(m.content)}</div></div>`;
+    }
+    if(m.role==='loading'){
+      return `<div style="display:flex;justify-content:flex-start;margin:8px 0;"><div style="background:var(--navy-1);border:1px solid var(--line);color:var(--ink-soft);padding:8px 12px;border-radius:12px 12px 12px 2px;font-size:13px;">✨ Thinking…</div></div>`;
+    }
+    if(m.role==='error'){
+      return `<div style="display:flex;justify-content:flex-start;margin:8px 0;"><div style="background:#D0453A22;border:1px solid #D0453A55;color:#D0453A;padding:8px 12px;border-radius:12px;font-size:13px;">${esc(m.content)}</div></div>`;
+    }
+    return `<div style="display:flex;justify-content:flex-start;margin:8px 0;"><div style="background:var(--navy-1);border:1px solid var(--line);color:var(--ink);padding:10px 14px;border-radius:12px 12px 12px 2px;max-width:90%;font-size:13.5px;line-height:1.55;">${mdToHtml(m.content)}</div></div>`;
+  }).join('');
+
+  setAiBody(`
+    ${chips}
+    <div id="ask-chat-scroll" style="max-height:380px;overflow-y:auto;padding:4px;">${bubbles}</div>
+    <div style="display:flex;gap:8px;margin-top:12px;border-top:1px solid var(--line);padding-top:10px;">
+      <input id="ask-input" type="text" placeholder="Ask anything about your leads, tasks, invoices…"
+        style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13.5px;background:var(--bg);color:var(--ink);">
+      <button class="btn btn-amber" id="ask-send">Ask</button>
+    </div>
+  `);
+  setAiFoot('<button class="btn btn-outline" id="ask-clear">Clear chat</button><button class="btn btn-outline" data-close="modal-ai">Close</button>');
+
+  const scroll = document.getElementById('ask-chat-scroll');
+  if(scroll) scroll.scrollTop = scroll.scrollHeight;
+
+  const input = document.getElementById('ask-input');
+  const send = document.getElementById('ask-send');
+  const submit = async ()=>{
+    const q = (input.value||'').trim();
+    if(!q) return;
+    input.value = '';
+    window.__askHistory.push({ role:'user', content:q });
+    window.__askHistory.push({ role:'loading' });
+    renderAskChat();
+    try{
+      const snapshot = buildCrmSnapshot();
+      // Include short chat memory for follow-up questions
+      const priorTurns = window.__askHistory
+        .filter(m=>m.role==='user'||m.role==='assistant')
+        .slice(-8);
+      const { text } = await callAi('ask_crm', { question:q, snapshot, priorTurns });
+      window.__askHistory = window.__askHistory.filter(m=>m.role!=='loading');
+      window.__askHistory.push({ role:'assistant', content:text||'(no answer)' });
+    } catch(e){
+      window.__askHistory = window.__askHistory.filter(m=>m.role!=='loading');
+      window.__askHistory.push({ role:'error', content:e.message });
+    }
+    renderAskChat();
+  };
+  send.addEventListener('click', submit);
+  input.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); submit(); } });
+  document.querySelectorAll('.ask-chip').forEach(b=>{
+    b.addEventListener('click', ()=>{ input.value = b.dataset.q; submit(); });
+  });
+  document.getElementById('ask-clear').addEventListener('click', ()=>{ window.__askHistory = []; renderAskChat(); });
+  setTimeout(()=>input.focus(), 50);
+}
+
+document.getElementById('btn-ask-ai').addEventListener('click', ()=>{
+  openAiModal('✨ Ask your CRM');
+  renderAskChat();
+});
+
+
 
 
 function renderTasks(){
