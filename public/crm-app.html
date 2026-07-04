@@ -19,9 +19,20 @@
       parent.postMessage({__crmCall:true, id:id, op:op, key:key, value:value}, '*');
     });
   }
+  function rpc(op, extra){
+    return new Promise(function(res){
+      var id = ++seq;
+      pending[id] = res;
+      var m = Object.assign({__crmCall:true, id:id, op:op}, extra||{});
+      parent.postMessage(m, '*');
+    });
+  }
   window.storage = {
     get: function(key){ return call('get', key).then(function(v){ return v; }); },
     set: function(key, value){ return call('set', key, value); }
+  };
+  window.booking = {
+    rpc: function(action, args){ return rpc('booking', {action:action, args:args||{}}); }
   };
 
   function openExternalUrl(url){
