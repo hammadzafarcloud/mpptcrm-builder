@@ -3364,11 +3364,17 @@ function buildCrmSnapshot(){
     id:m.id, productId:m.productId, qty:m.qty, type:m.type,
     leadId:m.leadId, date:m.date, note:(m.note||'').slice(0,120)
   }));
+  const expenses = (state.expenses||[]).map(e=>({
+    id:e.id, desc:(e.desc||'').slice(0,140), category:e.category, amount:e.amount,
+    date:e.date, memberId:e.memberId||null, leadId:e.leadId||null,
+    method:e.method||null, vendor:e.vendor||null, hasReceipt: !!e.receipt,
+    notes:(e.notes||'').slice(0,160)
+  }));
   return {
     today: new Date().toISOString(),
     settings: { company: state.settings.company, currency: state.settings.currency||'₹' },
-    counts: { leads:leads.length, tasks:tasks.length, visits:visits.length, quotes:quotes.length, invoices:invoices.length, products:inventory.length, stockMoves:stockMoves.length },
-    team, leads, tasks, visits, quotes, invoices, inventory, stockMoves
+    counts: { leads:leads.length, tasks:tasks.length, visits:visits.length, quotes:quotes.length, invoices:invoices.length, products:inventory.length, stockMoves:stockMoves.length, expenses:expenses.length },
+    team, leads, tasks, visits, quotes, invoices, inventory, stockMoves, expenses
   };
 }
 
