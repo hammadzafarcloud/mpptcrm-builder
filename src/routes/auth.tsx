@@ -62,9 +62,13 @@ function AuthPage() {
     <div style={styles.wrap}>
       <div style={styles.card}>
         <div style={styles.brand}>
-          <div style={styles.mark}>M</div>
+          <img
+            src="/__l5e/assets-v1/b41e5236-c8de-45fe-b702-90f95cc0aa41/solar-care-logo.png"
+            alt="Solar Care CRM logo"
+            style={styles.mark}
+          />
           <div>
-            <div style={styles.name}>MPPT Care</div>
+            <div style={styles.name}>Solar Care CRM</div>
             <div style={styles.tag}>SOLAR SERVICE CRM</div>
           </div>
         </div>
