@@ -62,9 +62,13 @@ function AuthPage() {
     <div style={styles.wrap}>
       <div style={styles.card}>
         <div style={styles.brand}>
-          <div style={styles.mark}>M</div>
+          <img
+            src="/__l5e/assets-v1/b41e5236-c8de-45fe-b702-90f95cc0aa41/solar-care-logo.png"
+            alt="Solar Care CRM logo"
+            style={styles.mark}
+          />
           <div>
-            <div style={styles.name}>MPPT Care</div>
+            <div style={styles.name}>Solar Care CRM</div>
             <div style={styles.tag}>SOLAR SERVICE CRM</div>
           </div>
         </div>
@@ -115,7 +119,7 @@ const styles: Record<string, React.CSSProperties> = {
   wrap: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0F1826", padding: "24px", fontFamily: "'Inter', system-ui, sans-serif" },
   card: { width: "100%", maxWidth: 420, background: "#FAF6EE", borderRadius: 14, padding: "32px 28px", boxShadow: "0 20px 60px rgba(0,0,0,0.35)" },
   brand: { display: "flex", gap: 12, alignItems: "center", marginBottom: 24 },
-  mark: { width: 44, height: 44, borderRadius: "50%", background: "#FF3131", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, boxShadow: "0 0 0 3px rgba(255,49,49,0.22)" },
+  mark: { width: 44, height: 44, borderRadius: "50%", background: "#fff", objectFit: "contain", padding: 4, boxShadow: "0 0 0 3px rgba(255,49,49,0.22)" },
   name: { fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 16, color: "#0F1826" },
   tag: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, color: "#666B76", letterSpacing: 0.6, textTransform: "uppercase" },
   h1: { fontFamily: "'Space Grotesk', sans-serif", margin: "0 0 6px", fontSize: 24, color: "#20242C" },
