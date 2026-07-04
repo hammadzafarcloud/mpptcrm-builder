@@ -702,6 +702,24 @@ tbody tr:hover{background:var(--paper-2);}
         <div id="invoice-list"></div>
       </div>
 
+      <!-- BOOKINGS -->
+      <div class="view" id="view-bookings">
+        <div class="table-toolbar" style="flex-wrap:wrap;gap:8px;">
+          <button class="btn btn-amber btn-sm" id="btn-new-booking-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+            New booking link
+          </button>
+          <div class="view-toggle">
+            <button class="active" data-btab="links">Links</button>
+            <button data-btab="submissions">Submissions <span id="bk-sub-count" style="opacity:.7"></span></button>
+          </div>
+          <div style="flex:1"></div>
+          <div style="font-size:12px;color:var(--ink-soft)">Share a service menu link · client selects · invoice generated automatically.</div>
+        </div>
+        <div id="bookings-links-wrap"></div>
+        <div id="bookings-subs-wrap" style="display:none"></div>
+      </div>
+
       <!-- FINANCE -->
       <div class="view" id="view-finance">
         <div class="readout-grid" id="finance-readouts" style="grid-template-columns:repeat(4,1fr);"></div>
