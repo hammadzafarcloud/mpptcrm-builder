@@ -651,6 +651,9 @@ tbody tr:hover{background:var(--paper-2);}
             <option value="Low">Low</option>
           </select>
           <select class="select-filter" id="filter-task-assignee"><option value="">All assignees</option></select>
+          <div style="flex:1;"></div>
+          <button class="btn btn-outline btn-sm" id="btn-ai-briefing" title="AI daily briefing">✨ AI Briefing</button>
+          <button class="btn btn-outline btn-sm" id="btn-ai-suggest" title="AI suggests follow-up tasks from your leads">✨ Suggest follow-ups</button>
         </div>
         <div class="readout-grid" id="task-readouts" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px;"></div>
         <div id="task-list"></div>
@@ -834,8 +837,24 @@ tbody tr:hover{background:var(--paper-2);}
         </div>
       </div>
 
+</div>
+
+<!-- AI ASSISTANT MODAL -->
+<div class="modal wide" id="modal-ai">
+  <div class="modal-head">
+    <h3 id="ai-modal-title">✨ AI Assistant</h3>
+    <button class="close-x" data-close="modal-ai">✕</button>
+  </div>
+  <div class="modal-body">
+    <div id="ai-modal-body" style="min-height:80px;">
+      <div style="color:var(--ink-soft);padding:20px;text-align:center;">Thinking…</div>
     </div>
   </div>
+  <div class="modal-foot" id="ai-modal-foot">
+    <button class="btn btn-outline" data-close="modal-ai">Close</button>
+  </div>
+</div>
+
 </div>
 
 <!-- LEAD DRAWER -->
@@ -2574,7 +2593,164 @@ function deleteTask(id){
   state.tasks = state.tasks.filter(x=>x.id!==id);
   saveState(); renderTasks();
 }
-window.__tasks = { toggle: toggleTaskDone, edit: (id)=>openTaskModal(id), del: deleteTask };
+window.__tasks = { toggle: toggleTaskDone, edit: (id)=>openTaskModal(id), del: deleteTask, draft: (id)=>aiDraftForTask(id) };
+
+/* ============================= AI ASSISTANT ============================= */
+function openAiModal(title){
+  document.getElementById('ai-modal-title').textContent = title;
+  document.getElementById('ai-modal-body').innerHTML = '<div style="color:var(--ink-soft);padding:24px;text-align:center;">✨ Thinking…</div>';
+  document.getElementById('ai-modal-foot').innerHTML = '<button class="btn btn-outline" data-close="modal-ai">Close</button>';
+  document.getElementById('ai-modal-foot').querySelector('[data-close]').addEventListener('click', ()=>closeModal('modal-ai'));
+  openModal('modal-ai');
+}
+function setAiBody(html){ document.getElementById('ai-modal-body').innerHTML = html; }
+function setAiFoot(html){
+  const foot = document.getElementById('ai-modal-foot');
+  foot.innerHTML = html;
+  foot.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click', ()=>closeModal(b.dataset.close)));
+}
+async function callAi(action, payload){
+  const res = await fetch('/api/ai-assist', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ action, payload })
+  });
+  if(!res.ok){
+    let msg = 'AI request failed ('+res.status+')';
+    if(res.status===429) msg = 'AI is rate-limited. Please try again in a moment.';
+    if(res.status===402) msg = 'AI credits exhausted. Add credits to your Lovable workspace.';
+    throw new Error(msg);
+  }
+  return await res.json();
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function mdToHtml(md){
+  // tiny markdown: **bold**, headers, lists, line breaks
+  let h = esc(md);
+  h = h.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+  h = h.replace(/^### (.*)$/gm,'<h4 style="margin:8px 0 4px;">$1</h4>');
+  h = h.replace(/^## (.*)$/gm,'<h3 style="margin:10px 0 6px;">$1</h3>');
+  h = h.replace(/^(\d+)\. (.*)$/gm,'<div style="margin:4px 0;padding-left:4px;"><b>$1.</b> $2</div>');
+  h = h.replace(/^- (.*)$/gm,'<div style="margin:3px 0;">• $1</div>');
+  h = h.replace(/\n\n/g,'<br><br>');
+  h = h.replace(/\n/g,'<br>');
+  return h;
+}
+
+async function aiDailyBriefing(){
+  openAiModal('✨ Daily briefing');
+  try{
+    const openTasks = (state.tasks||[]).filter(t=>!t.done).map(t=>{
+      const lead = t.leadId ? state.leads.find(l=>l.id===t.leadId) : null;
+      return { title:t.title, priority:t.priority, due:t.due||null, dueTime:t.dueTime||null, category:t.category, notes:t.notes||'', lead: lead?{name:lead.name, stage:lead.stage}:null };
+    });
+    const { text } = await callAi('briefing', { tasks: openTasks });
+    setAiBody('<div style="font-size:13.5px;line-height:1.55;color:var(--ink);">'+mdToHtml(text)+'</div>');
+  } catch(e){
+    setAiBody('<div style="color:#D0453A;padding:16px;">'+esc(e.message)+'</div>');
+  }
+}
+
+async function aiSuggestFollowups(){
+  openAiModal('✨ Suggested follow-up tasks');
+  try{
+    const leads = (state.leads||[]).map(l=>({
+      id:l.id, name:l.name, phone:l.phone, stage:l.stage,
+      createdAt:l.createdAt, lastContactedAt:l.lastContactedAt||null, notes:l.notes||''
+    }));
+    const openTasks = (state.tasks||[]).filter(t=>!t.done).map(t=>({ leadId:t.leadId, title:t.title }));
+    const { parsed, text } = await callAi('suggest_followups', { leads, openTasks });
+    const items = parsed && Array.isArray(parsed.suggestions) ? parsed.suggestions : [];
+    if(!items.length){
+      setAiBody('<div style="padding:16px;color:var(--ink-soft);">No follow-ups suggested right now. Nice work staying on top of things!<br><br><small>'+esc(text||'')+'</small></div>');
+      return;
+    }
+    window.__aiSuggestions = items;
+    setAiBody('<div style="font-size:13px;color:var(--ink-soft);margin-bottom:10px;">Select the ones you want to add as tasks.</div>'+
+      items.map((s,i)=>{
+        const lead = state.leads.find(l=>l.id===s.leadId);
+        return `<label style="display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px;cursor:pointer;">
+          <input type="checkbox" class="ai-sugg" data-i="${i}" checked style="margin-top:3px;width:16px;height:16px;">
+          <div style="flex:1;">
+            <div style="font-weight:600;">${esc(s.title)}</div>
+            <div style="font-size:12px;color:var(--ink-soft);margin-top:3px;">
+              <b>${esc(lead?lead.name:'Unknown')}</b> · ${esc(s.priority||'Medium')} · due in ${Number(s.dueInDays)||1}d · ${esc(s.category||'Follow-up')}
+            </div>
+            <div style="font-size:12px;color:var(--ink);margin-top:4px;">${esc(s.reason||'')}</div>
+          </div>
+        </label>`;
+      }).join(''));
+    setAiFoot('<button class="btn btn-outline" data-close="modal-ai">Cancel</button><button class="btn btn-amber" id="ai-accept-sugg">Add selected as tasks</button>');
+    document.getElementById('ai-accept-sugg').addEventListener('click', ()=>{
+      const picks = Array.from(document.querySelectorAll('.ai-sugg:checked')).map(c=>window.__aiSuggestions[Number(c.dataset.i)]);
+      const now = Date.now();
+      picks.forEach((s,i)=>{
+        const d = new Date(); d.setDate(d.getDate()+(Number(s.dueInDays)||1));
+        state.tasks.push({
+          id: now+i,
+          title: s.title,
+          leadId: s.leadId,
+          assigneeId: (state.team[0]&&state.team[0].id)||null,
+          due: d.toISOString().slice(0,10),
+          dueTime: '10:00',
+          priority: s.priority||'Medium',
+          category: s.category||'Follow-up',
+          notes: 'AI suggested: '+(s.reason||''),
+          done: false,
+          createdAt: now+i
+        });
+      });
+      saveState();
+      closeModal('modal-ai');
+      renderTasks();
+      renderDashboard&&renderDashboard();
+    });
+  } catch(e){
+    setAiBody('<div style="color:#D0453A;padding:16px;">'+esc(e.message)+'</div>');
+  }
+}
+
+async function aiDraftForTask(taskId){
+  const t = state.tasks.find(x=>x.id===taskId);
+  if(!t) return;
+  const lead = t.leadId ? state.leads.find(l=>l.id===t.leadId) : null;
+  if(!lead){ alert('Attach a lead to this task first.'); return; }
+  openAiModal('✨ Draft message to '+lead.name);
+  try{
+    const { text } = await callAi('draft_message', {
+      company: state.settings.company,
+      lead: { name: lead.name, stage: lead.stage, notes: lead.notes||'' },
+      task: { title: t.title, category: t.category, priority: t.priority, notes: t.notes||'' }
+    });
+    const msg = (text||'').trim();
+    setAiBody(
+      '<div style="font-size:12px;color:var(--ink-soft);margin-bottom:6px;">Review and edit before sending.</div>'+
+      '<textarea id="ai-draft-text" style="width:100%;min-height:160px;padding:12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13.5px;">'+esc(msg)+'</textarea>'
+    );
+    const waPhone = (lead.phone||'').replace(/\D/g,'');
+    setAiFoot(
+      '<button class="btn btn-outline" data-close="modal-ai">Close</button>'+
+      '<button class="btn btn-outline" id="ai-copy">Copy</button>'+
+      (waPhone?'<a class="btn btn-whatsapp" id="ai-wa" target="_blank" rel="noopener noreferrer" href="#">Open in WhatsApp</a>':'')
+    );
+    document.getElementById('ai-copy').addEventListener('click', ()=>{
+      const v = document.getElementById('ai-draft-text').value;
+      navigator.clipboard.writeText(v).then(()=>{ document.getElementById('ai-copy').textContent='Copied ✓'; });
+    });
+    if(waPhone){
+      const wa = document.getElementById('ai-wa');
+      const upd = ()=>{ wa.href = 'https://web.whatsapp.com/send?phone='+waPhone+'&text='+encodeURIComponent(document.getElementById('ai-draft-text').value); };
+      upd(); document.getElementById('ai-draft-text').addEventListener('input', upd);
+    }
+  } catch(e){
+    setAiBody('<div style="color:#D0453A;padding:16px;">'+esc(e.message)+'</div>');
+  }
+}
+
+document.getElementById('btn-ai-briefing').addEventListener('click', aiDailyBriefing);
+document.getElementById('btn-ai-suggest').addEventListener('click', aiSuggestFollowups);
+
+
 
 function renderTasks(){
   if(!state.tasks) state.tasks = [];
@@ -2653,7 +2829,8 @@ function renderTasks(){
             ${assignee?`<span>👷 ${assignee.name}</span>`:''}
           </div>
         </div>
-        <div style="display:flex;gap:6px;flex-shrink:0;">
+        <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
+          ${lead?`<button class="btn btn-outline btn-sm" onclick="window.__tasks.draft(${t.id})" title="AI drafts a follow-up message">✨ Draft</button>`:''}
           ${lead&&lead.phone?`<a class="btn btn-outline btn-sm" href="tel:${lead.phone}">Call</a>`:''}
           ${waHref?`<a class="btn btn-whatsapp btn-sm" target="_blank" rel="noopener noreferrer" href="${waHref}">WhatsApp</a>`:''}
           <button class="btn btn-outline btn-sm" onclick="window.__tasks.edit(${t.id})">Edit</button>
