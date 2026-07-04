@@ -1031,6 +1031,75 @@ tbody tr:hover{background:var(--paper-2);}
   </div>
 </div>
 
+<!-- INVENTORY: product add/edit -->
+<div class="modal" id="modal-product">
+  <div class="modal-head"><h3 id="prod-modal-title">Add product</h3><button class="close-x" data-close="modal-product">✕</button></div>
+  <div class="modal-body">
+    <div class="field-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="field" style="grid-column:1/-1;"><label>Product name</label><input id="p-name" placeholder="e.g. Longi 550W Mono PERC Panel"></div>
+      <div class="field"><label>Category</label>
+        <select id="p-cat">
+          <option>Solar Panels</option><option>Inverters</option><option>Batteries</option>
+          <option>Mounting Structure</option><option>Wires &amp; Cables</option><option>DB Boxes &amp; Breakers</option>
+          <option>Connectors &amp; Accessories</option><option>Net Metering</option><option>Tools</option><option>Consumables</option>
+        </select>
+      </div>
+      <div class="field"><label>SKU / Code</label><input id="p-sku" placeholder="e.g. PNL-LG-550"></div>
+      <div class="field"><label>Unit</label>
+        <select id="p-unit"><option>pcs</option><option>meter</option><option>roll</option><option>set</option><option>kg</option><option>liter</option><option>box</option></select>
+      </div>
+      <div class="field"><label>Unit price (Rs)</label><input id="p-price" type="number" placeholder="0"></div>
+      <div class="field"><label>Opening stock</label><input id="p-stock" type="number" placeholder="0"></div>
+      <div class="field"><label>Low-stock alert at</label><input id="p-min" type="number" placeholder="5"></div>
+      <div class="field" style="grid-column:1/-1;"><label>Notes / Specs</label><textarea id="p-notes" placeholder="Voltage, rating, warranty…"></textarea></div>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-outline" id="btn-delete-product" style="margin-right:auto;display:none;color:#D0453A;border-color:#D0453A;">Delete</button>
+    <button class="btn btn-outline" data-close="modal-product">Cancel</button>
+    <button class="btn btn-amber" id="btn-save-product">Save product</button>
+  </div>
+</div>
+
+<!-- INVENTORY: stock movement -->
+<div class="modal" id="modal-stock-move">
+  <div class="modal-head"><h3 id="sm-modal-title">Stock movement</h3><button class="close-x" data-close="modal-stock-move">✕</button></div>
+  <div class="modal-body">
+    <div class="field" style="margin-bottom:10px;"><label>Product</label><select id="sm-product"></select></div>
+    <div class="field-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="field"><label>Type</label>
+        <select id="sm-type">
+          <option value="in">➕ Stock IN (purchase / return)</option>
+          <option value="out">➖ Used at site (OUT)</option>
+          <option value="adjust">⚙ Adjustment / correction</option>
+        </select>
+      </div>
+      <div class="field"><label>Quantity</label><input id="sm-qty" type="number" placeholder="0"></div>
+      <div class="field" style="grid-column:1/-1;" id="sm-lead-wrap"><label>Used at site / Lead (for OUT)</label>
+        <select id="sm-lead"><option value="">— none —</option></select>
+      </div>
+      <div class="field" style="grid-column:1/-1;"><label>Date</label><input id="sm-date" type="date"></div>
+      <div class="field" style="grid-column:1/-1;"><label>Note</label><textarea id="sm-note" placeholder="Invoice #, technician, remarks…"></textarea></div>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-outline" data-close="modal-stock-move">Cancel</button>
+    <button class="btn btn-amber" id="btn-save-move">Save movement</button>
+  </div>
+</div>
+
+<!-- INVENTORY: product detail / usage -->
+<div class="modal wide" id="modal-product-detail">
+  <div class="modal-head"><h3 id="pd-title">Product</h3><button class="close-x" data-close="modal-product-detail">✕</button></div>
+  <div class="modal-body" id="pd-body"></div>
+  <div class="modal-foot">
+    <button class="btn btn-outline" data-close="modal-product-detail">Close</button>
+    <button class="btn btn-amber" id="pd-edit">Edit product</button>
+  </div>
+</div>
+
+
+
 
 <div id="print-area"></div>
 <div id="toast-wrap"></div>
