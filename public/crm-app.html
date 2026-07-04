@@ -626,6 +626,37 @@ tbody tr:hover{background:var(--paper-2);}
         <div id="visits-agenda"></div>
       </div>
 
+      <!-- TASKS -->
+      <div class="view" id="view-tasks">
+        <div class="table-toolbar" style="flex-wrap:wrap;gap:8px;">
+          <button class="btn btn-amber btn-sm" id="btn-new-task">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+            New task
+          </button>
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <input type="text" id="task-search" placeholder="Search tasks…">
+          </div>
+          <select class="select-filter" id="filter-task-status">
+            <option value="open">Open only</option>
+            <option value="all">All tasks</option>
+            <option value="done">Done only</option>
+            <option value="overdue">Overdue</option>
+            <option value="today">Due today</option>
+          </select>
+          <select class="select-filter" id="filter-task-priority">
+            <option value="">Any priority</option>
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
+          </select>
+          <select class="select-filter" id="filter-task-assignee"><option value="">All assignees</option></select>
+        </div>
+        <div class="readout-grid" id="task-readouts" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px;"></div>
+        <div id="task-list"></div>
+      </div>
+
+
       <!-- QUOTES -->
       <div class="view" id="view-quotes">
         <div class="table-toolbar">
