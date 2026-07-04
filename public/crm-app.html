@@ -2495,7 +2495,7 @@ function openBookingLinkModal(id){
   };
   const body = `
     <div class="field" style="margin-bottom:10px;"><label>Page title</label><input id="bkl-title" value="${escapeHtml(editingBookingLink.title)}"></div>
-    <div class="field" style="margin-bottom:10px;"><label>Public URL</label><input readonly value="${bkPublicUrl(editingBookingLink.token)}" style="font-family:var(--font-mono);font-size:12px;background:#fafafa;" onclick="this.select()"></div>
+    ${existing ? `<div class="field" style="margin-bottom:10px;"><label>Public URL</label><input readonly value="${bkPublicUrl(editingBookingLink.token)}" style="font-family:var(--font-mono);font-size:12px;background:#fafafa;" onclick="this.select()"></div>` : `<div style="margin-bottom:10px;padding:8px 10px;background:#fff8e1;border:1px solid #ffe082;border-radius:6px;font-size:12px;color:#7a5900;">💡 Your shareable URL is generated once you click <b>Create booking link</b> below.</div>`}
     <div style="margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;"><label style="font-weight:600;font-size:12px;">Services on this menu</label><button class="btn btn-outline btn-sm" id="bkl-add-svc">+ Add service</button></div>
     <div id="bkl-services"></div>
     <div style="margin-top:12px;font-size:11px;color:var(--ink-soft);">Clients open the URL, pick services + qty, submit their details. A submission appears here and can be converted to an invoice with one click.</div>
