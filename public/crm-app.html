@@ -530,6 +530,10 @@ tbody tr:hover{background:var(--paper-2);}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h18M6 3v4M18 3v4M5 7v13a1 1 0 001 1h12a1 1 0 001-1V7"/><path d="M9 13l2 2 4-4"/></svg>
         Bookings <span class="nav-badge" id="nav-booking-count">0</span>
       </button>
+      <button class="nav-item" data-view="inventory">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>
+        Inventory <span class="nav-badge" id="nav-inv-low" style="background:#D0453A">0</span>
+      </button>
       <button class="nav-item" data-view="finance">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
         Finance
@@ -719,6 +723,31 @@ tbody tr:hover{background:var(--paper-2);}
         </div>
         <div id="bookings-links-wrap"></div>
         <div id="bookings-subs-wrap" style="display:none"></div>
+      </div>
+
+      <!-- INVENTORY -->
+      <div class="view" id="view-inventory">
+        <div class="readout-grid" id="inv-readouts" style="grid-template-columns:repeat(4,1fr);"></div>
+        <div class="table-toolbar" style="flex-wrap:wrap;gap:8px;margin-top:14px;">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <input type="text" id="inv-search" placeholder="Search product, SKU, category…">
+          </div>
+          <select id="inv-filter-cat" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;"></select>
+          <select id="inv-filter-status" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;">
+            <option value="">All status</option><option value="ok">In stock</option><option value="low">Low stock</option><option value="out">Out of stock</option>
+          </select>
+          <div style="flex:1"></div>
+          <button class="btn btn-outline btn-sm" id="btn-stock-move">↕ Stock movement</button>
+          <button class="btn btn-amber btn-sm" id="btn-new-product">+ Add product</button>
+        </div>
+        <div class="card" style="margin-top:12px;padding:0;overflow:hidden;">
+          <div id="inv-table"></div>
+        </div>
+        <div class="card" style="margin-top:16px;">
+          <h3>Recent stock movements <span class="hint">who used what, where</span></h3>
+          <div id="inv-moves"></div>
+        </div>
       </div>
 
       <!-- FINANCE -->
@@ -1002,6 +1031,75 @@ tbody tr:hover{background:var(--paper-2);}
   </div>
 </div>
 
+<!-- INVENTORY: product add/edit -->
+<div class="modal" id="modal-product">
+  <div class="modal-head"><h3 id="prod-modal-title">Add product</h3><button class="close-x" data-close="modal-product">✕</button></div>
+  <div class="modal-body">
+    <div class="field-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="field" style="grid-column:1/-1;"><label>Product name</label><input id="p-name" placeholder="e.g. Longi 550W Mono PERC Panel"></div>
+      <div class="field"><label>Category</label>
+        <select id="p-cat">
+          <option>Solar Panels</option><option>Inverters</option><option>Batteries</option>
+          <option>Mounting Structure</option><option>Wires &amp; Cables</option><option>DB Boxes &amp; Breakers</option>
+          <option>Connectors &amp; Accessories</option><option>Net Metering</option><option>Tools</option><option>Consumables</option>
+        </select>
+      </div>
+      <div class="field"><label>SKU / Code</label><input id="p-sku" placeholder="e.g. PNL-LG-550"></div>
+      <div class="field"><label>Unit</label>
+        <select id="p-unit"><option>pcs</option><option>meter</option><option>roll</option><option>set</option><option>kg</option><option>liter</option><option>box</option></select>
+      </div>
+      <div class="field"><label>Unit price (Rs)</label><input id="p-price" type="number" placeholder="0"></div>
+      <div class="field"><label>Opening stock</label><input id="p-stock" type="number" placeholder="0"></div>
+      <div class="field"><label>Low-stock alert at</label><input id="p-min" type="number" placeholder="5"></div>
+      <div class="field" style="grid-column:1/-1;"><label>Notes / Specs</label><textarea id="p-notes" placeholder="Voltage, rating, warranty…"></textarea></div>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-outline" id="btn-delete-product" style="margin-right:auto;display:none;color:#D0453A;border-color:#D0453A;">Delete</button>
+    <button class="btn btn-outline" data-close="modal-product">Cancel</button>
+    <button class="btn btn-amber" id="btn-save-product">Save product</button>
+  </div>
+</div>
+
+<!-- INVENTORY: stock movement -->
+<div class="modal" id="modal-stock-move">
+  <div class="modal-head"><h3 id="sm-modal-title">Stock movement</h3><button class="close-x" data-close="modal-stock-move">✕</button></div>
+  <div class="modal-body">
+    <div class="field" style="margin-bottom:10px;"><label>Product</label><select id="sm-product"></select></div>
+    <div class="field-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="field"><label>Type</label>
+        <select id="sm-type">
+          <option value="in">➕ Stock IN (purchase / return)</option>
+          <option value="out">➖ Used at site (OUT)</option>
+          <option value="adjust">⚙ Adjustment / correction</option>
+        </select>
+      </div>
+      <div class="field"><label>Quantity</label><input id="sm-qty" type="number" placeholder="0"></div>
+      <div class="field" style="grid-column:1/-1;" id="sm-lead-wrap"><label>Used at site / Lead (for OUT)</label>
+        <select id="sm-lead"><option value="">— none —</option></select>
+      </div>
+      <div class="field" style="grid-column:1/-1;"><label>Date</label><input id="sm-date" type="date"></div>
+      <div class="field" style="grid-column:1/-1;"><label>Note</label><textarea id="sm-note" placeholder="Invoice #, technician, remarks…"></textarea></div>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-outline" data-close="modal-stock-move">Cancel</button>
+    <button class="btn btn-amber" id="btn-save-move">Save movement</button>
+  </div>
+</div>
+
+<!-- INVENTORY: product detail / usage -->
+<div class="modal wide" id="modal-product-detail">
+  <div class="modal-head"><h3 id="pd-title">Product</h3><button class="close-x" data-close="modal-product-detail">✕</button></div>
+  <div class="modal-body" id="pd-body"></div>
+  <div class="modal-foot">
+    <button class="btn btn-outline" data-close="modal-product-detail">Close</button>
+    <button class="btn btn-amber" id="pd-edit">Edit product</button>
+  </div>
+</div>
+
+
+
 
 <div id="print-area"></div>
 <div id="toast-wrap"></div>
@@ -1043,6 +1141,8 @@ const NAV_ROLES = {
   reports:['Admin','Sales Executive'],
   team:['Admin'],
   import:['Admin','Sales Executive'],
+  bookings:['Admin','Sales Executive'],
+  inventory:['Admin','Sales Executive','Technician'],
   settings:['Admin']
 };
 
@@ -1054,6 +1154,8 @@ let state = {
   expenses: [],
   tasks: [],
   team: [],
+  inventory: [],
+  stockMoves: [],
   currentUserId: 1,
   settings: {
     company: 'Solar Care CRM',
@@ -1070,8 +1172,11 @@ let state = {
   nextVisitId: 1,
   nextExpenseId: 1,
   nextTeamId: 1,
+  nextProductId: 1,
+  nextMoveId: 1,
   syncLog: []
 };
+
 
 let currentLeadId = null;
 let leadViewMode = 'table';
@@ -1161,11 +1266,73 @@ function seedData(){
     mkExpense('Net metering filing fee','Permits / Net Metering',12000, state.leads[5].id, now-86400000*11),
   ];
 
+  // ---- Inventory seed ----
+  const P = (name,cat,sku,unit,price,stock,min,notes)=>({
+    id: state.nextProductId++, name, category:cat, sku, unit, price, stock, minStock:min, notes:notes||'',
+    createdAt: now
+  });
+  state.inventory = [
+    P('Longi 550W Mono PERC Panel','Solar Panels','PNL-LG-550','pcs',22500,40,10,'Half-cut, 25yr warranty'),
+    P('JA Solar 555W N-Type Bifacial','Solar Panels','PNL-JA-555','pcs',24800,18,8,'Glass-glass bifacial'),
+    P('Growatt 5kW On-Grid Inverter','Inverters','INV-GW-5K','pcs',185000,6,2,'Single phase, WiFi'),
+    P('Solis 10kW Three-Phase Inverter','Inverters','INV-SL-10K','pcs',420000,3,2,'Three-phase on-grid'),
+    P('Deye 8kW Hybrid Inverter','Inverters','INV-DY-8H','pcs',540000,2,2,'Hybrid with battery support'),
+    P('Pylontech US3000C 3.5kWh Lithium Battery','Batteries','BAT-PT-3K5','pcs',335000,4,2,'48V LiFePO4'),
+    P('Phoenix TX1250 150Ah Tubular Battery','Batteries','BAT-PX-150','pcs',48500,8,4,'Lead acid backup'),
+    P('L-Foot Mounting Set (per panel)','Mounting Structure','MNT-LF-01','set',1800,120,40,'Iron L-foot + rail clamp'),
+    P('Aluminium Rail 4.2m','Mounting Structure','MNT-RL-42','pcs',3200,60,20,'Anodised rail'),
+    P('DC Solar Cable 4mm² Red','Wires & Cables','WR-DC-4R','meter',180,300,100,'PV1-F double insulated'),
+    P('DC Solar Cable 4mm² Black','Wires & Cables','WR-DC-4B','meter',180,280,100,'PV1-F double insulated'),
+    P('AC Cable 3-core 6mm²','Wires & Cables','WR-AC-6','meter',420,150,50,'Copper armoured'),
+    P('Earthing Wire 10mm²','Wires & Cables','WR-EG-10','meter',260,90,40,'Green PVC'),
+    P('AC DB Box 8-way','DB Boxes & Breakers','DB-AC-8W','pcs',6500,12,4,'IP54 metal enclosure'),
+    P('DC Combiner Box (2-in-1-out)','DB Boxes & Breakers','DB-DC-2I','pcs',9800,7,3,'With SPD + fuse'),
+    P('MCB 32A Single Pole','DB Boxes & Breakers','BRK-32-1P','pcs',850,50,15,'C-curve'),
+    P('MCB 63A Double Pole','DB Boxes & Breakers','BRK-63-2P','pcs',2200,22,10,''),
+    P('DC Isolator 32A 1000V','DB Boxes & Breakers','DC-ISO-32','pcs',3400,18,6,'Rotary'),
+    P('Surge Protection Device DC 1000V','DB Boxes & Breakers','SPD-DC-1K','pcs',5200,10,4,''),
+    P('MC4 Connector Pair','Connectors & Accessories','MC4-PR','pcs',280,200,60,'IP67'),
+    P('MC4 Y-Branch (Parallel)','Connectors & Accessories','MC4-Y','pcs',650,45,15,''),
+    P('Cable Tie 300mm (pack 100)','Consumables','CT-300','pack',450,35,10,'UV resistant black'),
+    P('Silicon Sealant 300ml','Consumables','SIL-300','pcs',780,20,8,'Weatherproof'),
+    P('Net Metering Application Kit','Net Metering','NM-APP','set',15000,5,2,'Filing + drawings'),
+    P('Bi-directional Meter (Single Phase)','Net Metering','NM-MTR-1','pcs',42000,4,2,'IESCO approved'),
+    P('Clamp Meter 600A','Tools','TL-CM-600','pcs',8500,3,1,'True RMS'),
+    P('Crimping Tool MC4','Tools','TL-MC4','pcs',3800,4,1,''),
+  ];
+
+  // seed movements — show usage tied to leads
+  const findP = (sku)=> state.inventory.find(x=>x.sku===sku);
+  const mv = (sku, qty, type, leadId, daysAgo, note)=>{
+    const p = findP(sku); if(!p) return;
+    state.stockMoves.push({
+      id: state.nextMoveId++, productId: p.id, qty, type,
+      leadId: leadId||null, date: now - 86400000*daysAgo,
+      note: note||'', userId: state.currentUserId
+    });
+  };
+  const leadFS = state.leads[5]; // Farah Siddiqui (6kW install)
+  const leadBH = state.leads[2]; // Bilal Hussain (AMC)
+  mv('PNL-LG-550', 12, 'out', leadFS.id, 13, '6kW install — 12 panels');
+  mv('INV-GW-5K', 1, 'out', leadFS.id, 13, 'Growatt 5kW inverter installed');
+  mv('MNT-LF-01', 12, 'out', leadFS.id, 13, 'Mounting sets');
+  mv('MNT-RL-42', 6, 'out', leadFS.id, 13, 'Rails');
+  mv('WR-DC-4R', 40, 'out', leadFS.id, 13, 'DC positive run');
+  mv('WR-DC-4B', 40, 'out', leadFS.id, 13, 'DC negative run');
+  mv('DB-DC-2I', 1, 'out', leadFS.id, 13, 'DC combiner');
+  mv('MC4-PR', 8, 'out', leadFS.id, 13, '');
+  mv('NM-APP', 1, 'out', leadFS.id, 11, 'Net metering filing');
+  mv('SIL-300', 2, 'out', leadBH.id, 7, 'Sealed panel edges during AMC');
+  mv('CT-300', 1, 'out', leadBH.id, 7, 'Retied wiring');
+  mv('PNL-LG-550', 20, 'in', null, 20, 'PO#2401 — restock');
+  mv('INV-GW-5K', 3, 'in', null, 25, 'PO#2402');
+
   state.syncLog = [
     {ts: now - 3600000*3, source:'Website', text:'New submission from contact form: Nida Yousaf'},
     {ts: now - 86400000*2, source:'Facebook', text:'Lead Ad form synced: Usman Ali'},
   ];
 }
+
 
 function mkLead(name, phone, area, source, systemType, issue, stage, createdAt, payments, score, assignedTo, referredBy){
   return {
@@ -1320,6 +1487,7 @@ document.querySelectorAll('.nav-item').forEach(btn=>{
       quotes:['Quotes','System sizing and customer quotations'],
       invoices:['Invoices','Generated invoices and payment status'],
       bookings:['Bookings','Shareable service menus — clients book, invoices auto-generate'],
+      inventory:['Inventory','Products, stock levels and site-wise usage'],
       finance:['Finance','Payments, reminders and job expenses'],
       reports:['Reports','Pipeline and revenue performance'],
       team:['Team','Manage your staff and role-based access'],
@@ -1336,11 +1504,13 @@ document.querySelectorAll('.nav-item').forEach(btn=>{
     if(v==='quotes') renderQuotes();
     if(v==='invoices') renderInvoices();
     if(v==='bookings') renderBookings();
+    if(v==='inventory') renderInventory();
     if(v==='finance') renderFinance();
     if(v==='reports') renderReports();
     if(v==='team') renderTeam();
     if(v==='import') renderImport();
     if(v==='settings') renderSettings();
+
   });
 });
 document.getElementById('hamburger').addEventListener('click', ()=>{
@@ -3287,6 +3457,295 @@ function renderTasks(){
   if(el) el.addEventListener('change', renderTasks);
 });
 
+/* ============================= INVENTORY ============================= */
+function invProductStock(p){
+  // stored stock is authoritative; movements adjust it via handlers
+  return Number(p.stock||0);
+}
+function invStatus(p){
+  const s = invProductStock(p);
+  if(s <= 0) return 'out';
+  if(s <= (p.minStock||0)) return 'low';
+  return 'ok';
+}
+function invUsedByLead(productId){
+  const map = new Map();
+  (state.stockMoves||[]).filter(m=>m.productId===productId && m.type==='out' && m.leadId).forEach(m=>{
+    const cur = map.get(m.leadId) || 0;
+    map.set(m.leadId, cur + Number(m.qty||0));
+  });
+  return map;
+}
+function updateInventoryNavBadge(){
+  const el = document.getElementById('nav-inv-low');
+  if(!el) return;
+  const n = (state.inventory||[]).filter(p=>invStatus(p)!=='ok').length;
+  el.textContent = n;
+  el.style.display = n ? '' : 'none';
+}
+function renderInventory(){
+  if(!state.inventory) state.inventory = [];
+  if(!state.stockMoves) state.stockMoves = [];
+  updateInventoryNavBadge();
+
+  // readouts
+  const inv = state.inventory;
+  const totalProducts = inv.length;
+  const totalValue = inv.reduce((s,p)=>s + invProductStock(p)*Number(p.price||0), 0);
+  const lowCount = inv.filter(p=>invStatus(p)==='low').length;
+  const outCount = inv.filter(p=>invStatus(p)==='out').length;
+  document.getElementById('inv-readouts').innerHTML = [
+    {label:'Products', value:totalProducts, delta:'items tracked', cls:'up'},
+    {label:'Stock value', value:fmtMoney(totalValue), delta:'at unit price', cls:'up'},
+    {label:'Low stock', value:lowCount, delta:'reorder soon', cls: lowCount?'down':'up'},
+    {label:'Out of stock', value:outCount, delta:'urgent', cls: outCount?'down':'up'}
+  ].map(r=>`<div class="readout"><div class="label">${r.label}</div><div class="value">${r.value}</div><div class="delta ${r.cls}">${r.cls==='up'?'▲':'▼'} ${r.delta}</div></div>`).join('');
+
+  // category filter
+  const cats = Array.from(new Set(inv.map(p=>p.category))).sort();
+  const catSel = document.getElementById('inv-filter-cat');
+  const curCat = catSel.value;
+  catSel.innerHTML = '<option value="">All categories</option>' + cats.map(c=>`<option ${c===curCat?'selected':''}>${escapeHtml(c)}</option>`).join('');
+
+  const q = (document.getElementById('inv-search').value||'').toLowerCase();
+  const fc = catSel.value;
+  const fs = document.getElementById('inv-filter-status').value;
+
+  let rows = inv.filter(p=>{
+    if(fc && p.category!==fc) return false;
+    if(fs && invStatus(p)!==fs) return false;
+    if(q){
+      const hay = (p.name+' '+p.sku+' '+p.category+' '+(p.notes||'')).toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  }).sort((a,b)=> a.name.localeCompare(b.name));
+
+  const stColors = {ok:'#2E9E6D', low:'#D9860F', out:'#D0453A'};
+  const stLabel = {ok:'In stock', low:'Low', out:'Out'};
+
+  if(!rows.length){
+    document.getElementById('inv-table').innerHTML = `<div style="text-align:center;padding:36px;color:var(--ink-soft);">No products match. Click <b>+ Add product</b> to add one.</div>`;
+  } else {
+    document.getElementById('inv-table').innerHTML = `
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead style="background:var(--navy-1);">
+          <tr>
+            <th style="text-align:left;padding:10px 14px;font-weight:600;color:var(--ink-soft);">Product</th>
+            <th style="text-align:left;padding:10px;font-weight:600;color:var(--ink-soft);">Category</th>
+            <th style="text-align:left;padding:10px;font-weight:600;color:var(--ink-soft);">SKU</th>
+            <th style="text-align:right;padding:10px;font-weight:600;color:var(--ink-soft);">Price</th>
+            <th style="text-align:right;padding:10px;font-weight:600;color:var(--ink-soft);">In stock</th>
+            <th style="text-align:center;padding:10px;font-weight:600;color:var(--ink-soft);">Status</th>
+            <th style="text-align:right;padding:10px 14px;font-weight:600;color:var(--ink-soft);">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+        ${rows.map(p=>{
+          const st = invStatus(p);
+          const usedMap = invUsedByLead(p.id);
+          const usedTotal = Array.from(usedMap.values()).reduce((s,n)=>s+n,0);
+          return `<tr style="border-bottom:1px solid var(--line);">
+            <td style="padding:10px 14px;">
+              <div style="font-weight:600;color:var(--ink);cursor:pointer;" onclick="window.__inv.detail(${p.id})">${escapeHtml(p.name)}</div>
+              <div style="font-size:11px;color:var(--ink-faint);">${usedTotal? usedMap.size+' site'+(usedMap.size>1?'s':'')+' · '+usedTotal+' '+p.unit+' used' : (p.notes? escapeHtml(p.notes).slice(0,60) : '')}</div>
+            </td>
+            <td style="padding:10px;color:var(--ink-soft);">${escapeHtml(p.category)}</td>
+            <td style="padding:10px;font-family:var(--font-mono);font-size:11.5px;color:var(--ink-soft);">${escapeHtml(p.sku||'')}</td>
+            <td style="padding:10px;text-align:right;">${fmtMoney(p.price)}<div style="font-size:10.5px;color:var(--ink-faint);">/ ${p.unit}</div></td>
+            <td style="padding:10px;text-align:right;font-weight:700;color:${stColors[st]};">${invProductStock(p)} <span style="font-weight:400;color:var(--ink-faint);font-size:11px;">${p.unit}</span><div style="font-size:10.5px;color:var(--ink-faint);font-weight:400;">min ${p.minStock||0}</div></td>
+            <td style="padding:10px;text-align:center;"><span style="font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:10px;background:${stColors[st]}22;color:${stColors[st]};">${stLabel[st]}</span></td>
+            <td style="padding:10px 14px;text-align:right;white-space:nowrap;">
+              <button class="btn btn-outline btn-sm" onclick="window.__inv.detail(${p.id})">View</button>
+              <button class="btn btn-outline btn-sm" onclick="window.__inv.move(${p.id})">Move</button>
+              <button class="btn btn-outline btn-sm" onclick="window.__inv.edit(${p.id})">Edit</button>
+            </td>
+          </tr>`;
+        }).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  // recent moves
+  const moves = (state.stockMoves||[]).slice().sort((a,b)=>b.date-a.date).slice(0,20);
+  const typeIcon = {in:'➕', out:'➖', adjust:'⚙'};
+  const typeColor = {in:'#2E9E6D', out:'#D0453A', adjust:'#D9860F'};
+  document.getElementById('inv-moves').innerHTML = moves.length
+    ? moves.map(m=>{
+        const p = inv.find(x=>x.id===m.productId);
+        const lead = m.leadId ? state.leads.find(l=>l.id===m.leadId) : null;
+        return `<div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);align-items:center;">
+          <span style="font-size:16px;color:${typeColor[m.type]};">${typeIcon[m.type]}</span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;color:var(--ink);font-size:13px;">${p?escapeHtml(p.name):'Deleted product'} <span style="color:${typeColor[m.type]};font-weight:700;">${m.type==='in'?'+':m.type==='out'?'−':'±'}${Math.abs(m.qty)} ${p?p.unit:''}</span></div>
+            <div style="font-size:11.5px;color:var(--ink-soft);">${fmtDate(m.date)} ${lead? '· Site: <b>'+escapeHtml(lead.name)+'</b> · '+escapeHtml(lead.area||''):''} ${m.note? '· '+escapeHtml(m.note):''}</div>
+          </div>
+        </div>`;
+      }).join('')
+    : `<div style="color:var(--ink-faint);text-align:center;padding:20px;">No movements yet. Use <b>Stock movement</b> to record purchases or site usage.</div>`;
+}
+
+['inv-search','inv-filter-cat','inv-filter-status'].forEach(id=>{
+  const el = document.getElementById(id);
+  if(el){ el.addEventListener('input', renderInventory); el.addEventListener('change', renderInventory); }
+});
+
+let editingProductId = null;
+function openProductModal(pid){
+  editingProductId = pid || null;
+  const p = pid ? state.inventory.find(x=>x.id===pid) : null;
+  document.getElementById('prod-modal-title').textContent = p ? 'Edit product' : 'Add product';
+  document.getElementById('p-name').value = p? p.name : '';
+  document.getElementById('p-cat').value = p? p.category : 'Solar Panels';
+  document.getElementById('p-sku').value = p? p.sku : '';
+  document.getElementById('p-unit').value = p? p.unit : 'pcs';
+  document.getElementById('p-price').value = p? p.price : '';
+  document.getElementById('p-stock').value = p? p.stock : 0;
+  document.getElementById('p-min').value = p? p.minStock : 5;
+  document.getElementById('p-notes').value = p? (p.notes||'') : '';
+  document.getElementById('btn-delete-product').style.display = p ? '' : 'none';
+  openModal('modal-product');
+}
+document.getElementById('btn-new-product').addEventListener('click', ()=> openProductModal(null));
+document.getElementById('btn-save-product').addEventListener('click', async ()=>{
+  const name = document.getElementById('p-name').value.trim();
+  if(!name){ toast('Product name is required','error'); return; }
+  const data = {
+    name,
+    category: document.getElementById('p-cat').value,
+    sku: document.getElementById('p-sku').value.trim(),
+    unit: document.getElementById('p-unit').value,
+    price: Number(document.getElementById('p-price').value)||0,
+    stock: Number(document.getElementById('p-stock').value)||0,
+    minStock: Number(document.getElementById('p-min').value)||0,
+    notes: document.getElementById('p-notes').value.trim()
+  };
+  if(editingProductId){
+    const p = state.inventory.find(x=>x.id===editingProductId);
+    Object.assign(p, data);
+    toast('Product updated');
+  } else {
+    state.inventory.push(Object.assign({id: state.nextProductId++, createdAt: Date.now()}, data));
+    toast('Product added');
+  }
+  await saveState();
+  closeModal('modal-product');
+  renderInventory();
+});
+document.getElementById('btn-delete-product').addEventListener('click', async ()=>{
+  if(!editingProductId) return;
+  if(!confirm('Delete this product? Its movement history stays for the record.')) return;
+  state.inventory = state.inventory.filter(x=>x.id!==editingProductId);
+  await saveState();
+  closeModal('modal-product');
+  renderInventory();
+  toast('Product deleted');
+});
+
+let moveDefaultProduct = null;
+function openMoveModal(pid){
+  moveDefaultProduct = pid || null;
+  const sel = document.getElementById('sm-product');
+  sel.innerHTML = state.inventory.map(p=>`<option value="${p.id}" ${p.id===pid?'selected':''}>${escapeHtml(p.name)} (${p.stock} ${p.unit})</option>`).join('');
+  document.getElementById('sm-type').value = 'out';
+  document.getElementById('sm-qty').value = '';
+  document.getElementById('sm-note').value = '';
+  document.getElementById('sm-date').value = new Date().toISOString().slice(0,10);
+  const leadSel = document.getElementById('sm-lead');
+  leadSel.innerHTML = '<option value="">— none —</option>' + state.leads.map(l=>`<option value="${l.id}">${escapeHtml(l.name)} · ${escapeHtml(l.area||'')}</option>`).join('');
+  openModal('modal-stock-move');
+}
+document.getElementById('btn-stock-move').addEventListener('click', ()=> openMoveModal(null));
+document.getElementById('btn-save-move').addEventListener('click', async ()=>{
+  const productId = Number(document.getElementById('sm-product').value);
+  const type = document.getElementById('sm-type').value;
+  const qty = Number(document.getElementById('sm-qty').value);
+  const leadId = document.getElementById('sm-lead').value ? Number(document.getElementById('sm-lead').value) : null;
+  const dateStr = document.getElementById('sm-date').value;
+  const note = document.getElementById('sm-note').value.trim();
+  if(!productId || !qty || qty<=0){ toast('Pick a product and quantity','error'); return; }
+  const p = state.inventory.find(x=>x.id===productId);
+  if(!p){ toast('Product not found','error'); return; }
+  if(type==='out'){
+    if(qty > p.stock){ if(!confirm(`Only ${p.stock} ${p.unit} in stock. Continue anyway?`)) return; }
+    p.stock = Math.max(0, p.stock - qty);
+  } else if(type==='in'){
+    p.stock = p.stock + qty;
+  } else {
+    // adjust: qty is new absolute stock
+    p.stock = qty;
+  }
+  state.stockMoves.push({
+    id: state.nextMoveId++, productId, qty, type, leadId,
+    date: dateStr ? new Date(dateStr).getTime() : Date.now(),
+    note, userId: state.currentUserId
+  });
+  await saveState();
+  closeModal('modal-stock-move');
+  renderInventory();
+  toast('Stock movement saved');
+});
+
+function openProductDetail(pid){
+  const p = state.inventory.find(x=>x.id===pid);
+  if(!p) return;
+  document.getElementById('pd-title').textContent = p.name;
+  const moves = (state.stockMoves||[]).filter(m=>m.productId===pid).sort((a,b)=>b.date-a.date);
+  const usedMap = invUsedByLead(pid);
+  const sites = Array.from(usedMap.entries()).map(([lid,qty])=>{
+    const l = state.leads.find(x=>x.id===lid);
+    return {lead:l, qty};
+  }).filter(x=>x.lead).sort((a,b)=>b.qty-a.qty);
+  const totalIn = moves.filter(m=>m.type==='in').reduce((s,m)=>s+Number(m.qty),0);
+  const totalOut = moves.filter(m=>m.type==='out').reduce((s,m)=>s+Number(m.qty),0);
+  const stColors = {ok:'#2E9E6D', low:'#D9860F', out:'#D0453A'};
+  const st = invStatus(p);
+  document.getElementById('pd-body').innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">
+      <div class="readout"><div class="label">In stock</div><div class="value" style="color:${stColors[st]};">${p.stock} ${p.unit}</div></div>
+      <div class="readout"><div class="label">Min alert</div><div class="value">${p.minStock||0}</div></div>
+      <div class="readout"><div class="label">Total received</div><div class="value">${totalIn}</div></div>
+      <div class="readout"><div class="label">Total used</div><div class="value">${totalOut}</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12.5px;color:var(--ink-soft);margin-bottom:16px;">
+      <div><b>Category:</b> ${escapeHtml(p.category)}</div>
+      <div><b>SKU:</b> ${escapeHtml(p.sku||'—')}</div>
+      <div><b>Unit price:</b> ${fmtMoney(p.price)}</div>
+      <div><b>Stock value:</b> ${fmtMoney(p.stock*p.price)}</div>
+      ${p.notes?`<div style="grid-column:1/-1;"><b>Notes:</b> ${escapeHtml(p.notes)}</div>`:''}
+    </div>
+    <h3 style="margin:8px 0 8px;font-family:var(--font-display);font-size:14px;">Used at these sites</h3>
+    ${sites.length? `<div class="card" style="padding:0;overflow:hidden;margin-bottom:16px;">
+      ${sites.map(s=>`<div style="display:flex;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--line);">
+        <div><b>${escapeHtml(s.lead.name)}</b> <span style="color:var(--ink-soft);font-size:12px;">· ${escapeHtml(s.lead.area||'')} · ${escapeHtml(s.lead.systemType||'')}</span></div>
+        <div style="font-weight:700;color:#D0453A;">${s.qty} ${p.unit}</div>
+      </div>`).join('')}
+    </div>` : `<div style="color:var(--ink-faint);font-size:12.5px;margin-bottom:16px;">Not used on any site yet.</div>`}
+    <h3 style="margin:8px 0 8px;font-family:var(--font-display);font-size:14px;">Movement history</h3>
+    ${moves.length? `<div class="card" style="padding:0;overflow:hidden;">
+      ${moves.map(m=>{
+        const lead = m.leadId ? state.leads.find(l=>l.id===m.leadId) : null;
+        const color = m.type==='in'?'#2E9E6D':m.type==='out'?'#D0453A':'#D9860F';
+        const sign = m.type==='in'?'+':m.type==='out'?'−':'±';
+        return `<div style="display:flex;justify-content:space-between;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line);">
+          <div style="min-width:0;">
+            <div style="font-size:12.5px;color:var(--ink);"><b style="color:${color};">${sign}${Math.abs(m.qty)} ${p.unit}</b> · ${m.type.toUpperCase()} ${lead? '· '+escapeHtml(lead.name):''}</div>
+            <div style="font-size:11.5px;color:var(--ink-soft);">${fmtDate(m.date)} ${m.note? '· '+escapeHtml(m.note):''}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>` : `<div style="color:var(--ink-faint);font-size:12.5px;">No movements recorded.</div>`}
+  `;
+  document.getElementById('pd-edit').onclick = ()=>{ closeModal('modal-product-detail'); openProductModal(pid); };
+  openModal('modal-product-detail');
+}
+
+window.__inv = {
+  edit: openProductModal,
+  move: openMoveModal,
+  detail: openProductDetail
+};
+
 /* ============================= INIT ============================= */
 async function init(){
   document.getElementById('brand-logo-img').src = LOGO_DATA_URI;
@@ -3296,15 +3755,62 @@ async function init(){
     await saveState();
   }
   if(!state.tasks) state.tasks = [];
+  if(!state.inventory || !state.inventory.length){
+    // backfill inventory on existing saved state
+    state.inventory = state.inventory || [];
+    state.stockMoves = state.stockMoves || [];
+    state.nextProductId = state.nextProductId || 1;
+    state.nextMoveId = state.nextMoveId || 1;
+    // seed just inventory portion by calling helper
+    try{
+      const backupLeads = state.leads;
+      // Temporarily run partial seed for inventory only
+      const now = Date.now();
+      const P = (name,cat,sku,unit,price,stock,min,notes)=>({id: state.nextProductId++, name, category:cat, sku, unit, price, stock, minStock:min, notes:notes||'', createdAt: now});
+      state.inventory = [
+        P('Longi 550W Mono PERC Panel','Solar Panels','PNL-LG-550','pcs',22500,40,10,'Half-cut, 25yr warranty'),
+        P('JA Solar 555W N-Type Bifacial','Solar Panels','PNL-JA-555','pcs',24800,18,8,'Glass-glass bifacial'),
+        P('Growatt 5kW On-Grid Inverter','Inverters','INV-GW-5K','pcs',185000,6,2,'Single phase, WiFi'),
+        P('Solis 10kW Three-Phase Inverter','Inverters','INV-SL-10K','pcs',420000,3,2,'Three-phase on-grid'),
+        P('Deye 8kW Hybrid Inverter','Inverters','INV-DY-8H','pcs',540000,2,2,'Hybrid with battery support'),
+        P('Pylontech US3000C 3.5kWh Lithium Battery','Batteries','BAT-PT-3K5','pcs',335000,4,2,'48V LiFePO4'),
+        P('Phoenix TX1250 150Ah Tubular Battery','Batteries','BAT-PX-150','pcs',48500,8,4,'Lead acid backup'),
+        P('L-Foot Mounting Set (per panel)','Mounting Structure','MNT-LF-01','set',1800,120,40,'Iron L-foot + rail clamp'),
+        P('Aluminium Rail 4.2m','Mounting Structure','MNT-RL-42','pcs',3200,60,20,'Anodised rail'),
+        P('DC Solar Cable 4mm² Red','Wires & Cables','WR-DC-4R','meter',180,300,100,'PV1-F double insulated'),
+        P('DC Solar Cable 4mm² Black','Wires & Cables','WR-DC-4B','meter',180,280,100,'PV1-F double insulated'),
+        P('AC Cable 3-core 6mm²','Wires & Cables','WR-AC-6','meter',420,150,50,'Copper armoured'),
+        P('Earthing Wire 10mm²','Wires & Cables','WR-EG-10','meter',260,90,40,'Green PVC'),
+        P('AC DB Box 8-way','DB Boxes & Breakers','DB-AC-8W','pcs',6500,12,4,'IP54 metal enclosure'),
+        P('DC Combiner Box (2-in-1-out)','DB Boxes & Breakers','DB-DC-2I','pcs',9800,7,3,'With SPD + fuse'),
+        P('MCB 32A Single Pole','DB Boxes & Breakers','BRK-32-1P','pcs',850,50,15,'C-curve'),
+        P('MCB 63A Double Pole','DB Boxes & Breakers','BRK-63-2P','pcs',2200,22,10,''),
+        P('DC Isolator 32A 1000V','DB Boxes & Breakers','DC-ISO-32','pcs',3400,18,6,'Rotary'),
+        P('Surge Protection Device DC 1000V','DB Boxes & Breakers','SPD-DC-1K','pcs',5200,10,4,''),
+        P('MC4 Connector Pair','Connectors & Accessories','MC4-PR','pcs',280,200,60,'IP67'),
+        P('MC4 Y-Branch (Parallel)','Connectors & Accessories','MC4-Y','pcs',650,45,15,''),
+        P('Cable Tie 300mm (pack 100)','Consumables','CT-300','pack',450,35,10,'UV resistant black'),
+        P('Silicon Sealant 300ml','Consumables','SIL-300','pcs',780,20,8,'Weatherproof'),
+        P('Net Metering Application Kit','Net Metering','NM-APP','set',15000,5,2,'Filing + drawings'),
+        P('Bi-directional Meter (Single Phase)','Net Metering','NM-MTR-1','pcs',42000,4,2,'IESCO approved'),
+        P('Clamp Meter 600A','Tools','TL-CM-600','pcs',8500,3,1,'True RMS'),
+        P('Crimping Tool MC4','Tools','TL-MC4','pcs',3800,4,1,''),
+      ];
+      state.stockMoves = [];
+      await saveState();
+    }catch(e){ console.error('inventory backfill failed', e); }
+  }
   document.querySelector('.brand-text .name').textContent = state.settings.company;
   renderViewingAs();
   renderDashboard();
   renderLeads();
   updateTaskNavBadge();
+  updateInventoryNavBadge();
 }
 init();
 
 })();
+
 </script>
 </body>
 </html>
