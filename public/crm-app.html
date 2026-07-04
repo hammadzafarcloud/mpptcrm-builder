@@ -1141,6 +1141,8 @@ const NAV_ROLES = {
   reports:['Admin','Sales Executive'],
   team:['Admin'],
   import:['Admin','Sales Executive'],
+  bookings:['Admin','Sales Executive'],
+  inventory:['Admin','Sales Executive','Technician'],
   settings:['Admin']
 };
 
@@ -1152,6 +1154,8 @@ let state = {
   expenses: [],
   tasks: [],
   team: [],
+  inventory: [],
+  stockMoves: [],
   currentUserId: 1,
   settings: {
     company: 'Solar Care CRM',
@@ -1168,8 +1172,11 @@ let state = {
   nextVisitId: 1,
   nextExpenseId: 1,
   nextTeamId: 1,
+  nextProductId: 1,
+  nextMoveId: 1,
   syncLog: []
 };
+
 
 let currentLeadId = null;
 let leadViewMode = 'table';
