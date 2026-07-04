@@ -1974,7 +1974,7 @@ function renderInvoices(){
     return `
     <div class="invoice-list-item" data-id="${i.id}">
       <div>
-        <div class="cell-name">${i.leadName} <span style="font-family:var(--font-mono);color:var(--ink-faint);font-weight:500;font-size:11px;">#MPPT-${String(i.id).padStart(4,'0')}</span></div>
+        <div class="cell-name">${i.leadName} <span style="font-family:var(--font-mono);color:var(--ink-faint);font-weight:500;font-size:11px;">#SCC-${String(i.id).padStart(4,'0')}</span></div>
         <div class="cell-sub">${fmtDate(i.date)} · ${i.items.length} item(s)</div>
       </div>
       <div style="display:flex;align-items:center;gap:12px;">
@@ -2007,7 +2007,7 @@ function openInvoiceEditor(existingInvoice, lead, presetItems){
     (presetItems ? JSON.parse(JSON.stringify(presetItems)) : (lead ? [{desc: defaultServiceFor(lead), qty:1, rate:0}] : [{desc:'', qty:1, rate:0}]));
   editingInvoicePayments = existingInvoice ? JSON.parse(JSON.stringify(existingInvoice.payments||[])) : [];
 
-  document.getElementById('invoice-modal-title').textContent = isNew ? 'Generate invoice' : `Invoice #MPPT-${String(existingInvoice.id).padStart(4,'0')}`;
+  document.getElementById('invoice-modal-title').textContent = isNew ? 'Generate invoice' : `Invoice #SCC-${String(existingInvoice.id).padStart(4,'0')}`;
 
   document.getElementById('invoice-modal-body').innerHTML = `
     <div class="field-grid" style="margin-bottom:16px;">
@@ -2116,7 +2116,7 @@ document.getElementById('btn-save-invoice').addEventListener('click', ()=>{
     state.invoices.unshift(data);
     if(data.leadId){
       const lead = state.leads.find(l=>l.id===data.leadId);
-      if(lead) lead.history.push({ts:Date.now(), type:'invoice', note:`Invoice #MPPT-${String(data.id).padStart(4,'0')} generated for ${fmtMoney(data.total)}`});
+      if(lead) lead.history.push({ts:Date.now(), type:'invoice', note:`Invoice #SCC-${String(data.id).padStart(4,'0')} generated for ${fmtMoney(data.total)}`});
     }
     toast('Invoice created');
   }
@@ -2140,7 +2140,7 @@ document.getElementById('btn-print-invoice').addEventListener('click', ()=>{
           <div class="brand-mark" style="width:40px;height:40px;"><img src="${LOGO_DATA_URI}" alt="logo" style="width:100%;height:100%;object-fit:cover;"></div>
           <div><div style="font-family:var(--font-display);font-weight:700;font-size:16px;">${state.settings.company}</div><div style="font-size:11px;color:var(--ink-soft);">${state.settings.address}</div><div style="font-size:11px;color:var(--ink-soft);">${state.settings.phone}</div></div>
         </div>
-        <div class="inv-title"><div class="h">INVOICE</div><div class="id">#MPPT-${String(invId).padStart(4,'0')}</div><div class="id">${dateStr}</div></div>
+        <div class="inv-title"><div class="h">INVOICE</div><div class="id">#SCC-${String(invId).padStart(4,'0')}</div><div class="id">${dateStr}</div></div>
       </div>
       <div class="inv-meta-grid">
         <div><div class="lbl">Billed to</div><div style="font-weight:600;margin-top:3px;">${custName}</div><div style="font-size:12px;color:var(--ink-soft)">${custPhone}</div><div style="font-size:12px;color:var(--ink-soft)">${custArea}</div></div>
@@ -2184,10 +2184,10 @@ function renderFinance(){
   document.getElementById('payment-reminders').innerHTML = pending.length ? pending.map(i=>{
     const due = i.total - invoicePaid(i);
     const days = Math.floor((Date.now()-i.date)/86400000);
-    const waMsg = `Hi ${i.leadName}, a friendly reminder from ${state.settings.company} — invoice #MPPT-${String(i.id).padStart(4,'0')} has a balance of ${fmtMoney(due)} outstanding. Please let us know if you'd like to arrange payment. Thank you!`;
+    const waMsg = `Hi ${i.leadName}, a friendly reminder from ${state.settings.company} — invoice #SCC-${String(i.id).padStart(4,'0')} has a balance of ${fmtMoney(due)} outstanding. Please let us know if you'd like to arrange payment. Thank you!`;
     return `
     <div class="mini-row">
-      <div><div class="who">${i.leadName}</div><div class="meta">#MPPT-${String(i.id).padStart(4,'0')} · ${days}d outstanding</div></div>
+      <div><div class="who">${i.leadName}</div><div class="meta">#SCC-${String(i.id).padStart(4,'0')} · ${days}d outstanding</div></div>
       <div style="display:flex;align-items:center;gap:8px;">
         <div style="font-family:var(--font-mono);font-weight:600;color:var(--terracotta)">${fmtMoney(due)}</div>
         <a class="btn btn-whatsapp btn-sm" target="_blank" rel="noopener noreferrer" href="https://web.whatsapp.com/send?phone=${(i.leadPhone||'').replace(/\D/g,'')}&text=${encodeURIComponent(waMsg)}">Remind</a>
