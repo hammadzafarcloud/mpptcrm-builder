@@ -69,7 +69,7 @@ function CrmHost() {
     <div style={{ position: "relative", width: "100vw", height: "100vh", overflow: "hidden" }}>
       <iframe
         ref={iframeRef}
-        title="MPPT Care CRM"
+        title="Solar Care CRM"
         src="/crm-app.html"
         style={{ width: "100%", height: "100%", border: 0, display: "block" }}
       />
