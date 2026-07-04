@@ -1135,7 +1135,49 @@ tbody tr:hover{background:var(--paper-2);}
   </div>
 </div>
 
+<!-- EXPENSE: add/edit -->
+<div class="modal" id="modal-expense">
+  <div class="modal-head"><h3 id="ex-modal-title">Add expense</h3><button class="close-x" data-close="modal-expense">✕</button></div>
+  <div class="modal-body">
+    <div class="field-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="field" style="grid-column:1/-1;"><label>Description *</label><input id="ex-desc" placeholder="e.g. Cement, cable clips for Bahria Town site"></div>
+      <div class="field"><label>Category</label>
+        <select id="ex-category">
+          <option>Materials</option><option>Labor</option><option>Transport</option>
+          <option>Fuel</option><option>Food / Refreshment</option><option>Tools</option>
+          <option>Permits / Net Metering</option><option>Rent / Utility</option><option>Misc</option>
+        </select>
+      </div>
+      <div class="field"><label>Amount (PKR) *</label><input id="ex-amount" type="number" placeholder="0"></div>
+      <div class="field"><label>Date</label><input id="ex-date" type="date"></div>
+      <div class="field"><label>Paid by (team)</label><select id="ex-member"><option value="">— select —</option></select></div>
+      <div class="field" style="grid-column:1/-1;"><label>Site / Lead (optional)</label><select id="ex-lead2"><option value="">— none —</option></select></div>
+      <div class="field"><label>Payment method</label>
+        <select id="ex-method">
+          <option>Cash</option><option>Bank transfer</option><option>Card</option><option>JazzCash / Easypaisa</option><option>Company account</option>
+        </select>
+      </div>
+      <div class="field"><label>Vendor / Shop</label><input id="ex-vendor" placeholder="e.g. Hafeez Center, Shell Gulberg"></div>
+      <div class="field" style="grid-column:1/-1;"><label>Notes</label><textarea id="ex-notes" placeholder="Reference #, remarks…"></textarea></div>
+      <div class="field" style="grid-column:1/-1;">
+        <label>Receipt / Screenshot <span class="hint">(bill photo, screenshot of transfer)</span></label>
+        <input id="ex-file" type="file" accept="image/*" style="padding:6px 0;">
+        <div id="ex-preview" style="margin-top:8px;"></div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-outline" data-close="modal-expense">Cancel</button>
+    <button class="btn btn-amber" id="btn-save-expense">Save expense</button>
+  </div>
+</div>
 
+<!-- EXPENSE: image viewer -->
+<div class="modal wide" id="modal-expense-view">
+  <div class="modal-head"><h3 id="exv-title">Receipt</h3><button class="close-x" data-close="modal-expense-view">✕</button></div>
+  <div class="modal-body" id="exv-body" style="text-align:center;"></div>
+  <div class="modal-foot"><button class="btn btn-outline" data-close="modal-expense-view">Close</button></div>
+</div>
 
 
 <div id="print-area"></div>
