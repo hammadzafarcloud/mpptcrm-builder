@@ -725,6 +725,31 @@ tbody tr:hover{background:var(--paper-2);}
         <div id="bookings-subs-wrap" style="display:none"></div>
       </div>
 
+      <!-- INVENTORY -->
+      <div class="view" id="view-inventory">
+        <div class="readout-grid" id="inv-readouts" style="grid-template-columns:repeat(4,1fr);"></div>
+        <div class="table-toolbar" style="flex-wrap:wrap;gap:8px;margin-top:14px;">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <input type="text" id="inv-search" placeholder="Search product, SKU, category…">
+          </div>
+          <select id="inv-filter-cat" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;"></select>
+          <select id="inv-filter-status" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;">
+            <option value="">All status</option><option value="ok">In stock</option><option value="low">Low stock</option><option value="out">Out of stock</option>
+          </select>
+          <div style="flex:1"></div>
+          <button class="btn btn-outline btn-sm" id="btn-stock-move">↕ Stock movement</button>
+          <button class="btn btn-amber btn-sm" id="btn-new-product">+ Add product</button>
+        </div>
+        <div class="card" style="margin-top:12px;padding:0;overflow:hidden;">
+          <div id="inv-table"></div>
+        </div>
+        <div class="card" style="margin-top:16px;">
+          <h3>Recent stock movements <span class="hint">who used what, where</span></h3>
+          <div id="inv-moves"></div>
+        </div>
+      </div>
+
       <!-- FINANCE -->
       <div class="view" id="view-finance">
         <div class="readout-grid" id="finance-readouts" style="grid-template-columns:repeat(4,1fr);"></div>
