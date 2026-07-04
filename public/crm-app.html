@@ -501,6 +501,10 @@ tbody tr:hover{background:var(--paper-2);}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
         Site Visits
       </button>
+      <button class="nav-item" data-view="tasks">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h9"/></svg>
+        Tasks <span class="nav-badge" id="nav-task-count">0</span>
+      </button>
       <button class="nav-item" data-view="quotes">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 3h9a1 1 0 011 1v16l-3-2-3 2-3-2-3 2V6a3 3 0 013-3z"/><path d="M9 9h6M9 13h6"/></svg>
         Quotes
@@ -621,6 +625,37 @@ tbody tr:hover{background:var(--paper-2);}
         </div>
         <div id="visits-agenda"></div>
       </div>
+
+      <!-- TASKS -->
+      <div class="view" id="view-tasks">
+        <div class="table-toolbar" style="flex-wrap:wrap;gap:8px;">
+          <button class="btn btn-amber btn-sm" id="btn-new-task">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+            New task
+          </button>
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <input type="text" id="task-search" placeholder="Search tasks…">
+          </div>
+          <select class="select-filter" id="filter-task-status">
+            <option value="open">Open only</option>
+            <option value="all">All tasks</option>
+            <option value="done">Done only</option>
+            <option value="overdue">Overdue</option>
+            <option value="today">Due today</option>
+          </select>
+          <select class="select-filter" id="filter-task-priority">
+            <option value="">Any priority</option>
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
+          </select>
+          <select class="select-filter" id="filter-task-assignee"><option value="">All assignees</option></select>
+        </div>
+        <div class="readout-grid" id="task-readouts" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px;"></div>
+        <div id="task-list"></div>
+      </div>
+
 
       <!-- QUOTES -->
       <div class="view" id="view-quotes">
@@ -893,6 +928,28 @@ tbody tr:hover{background:var(--paper-2);}
   </div>
 </div>
 
+<!-- TASK MODAL -->
+<div class="modal" id="modal-task">
+  <div class="modal-head"><h3 id="task-modal-title">New task</h3><button class="close-x" data-close="modal-task">✕</button></div>
+  <div class="modal-body">
+    <div class="field-grid">
+      <div class="field" style="grid-column:1/-1;"><label>Title</label><input id="t-title" placeholder="e.g. Call Ahmed about payment follow-up"></div>
+      <div class="field"><label>Related lead (optional)</label><select id="t-lead"><option value="">— None —</option></select></div>
+      <div class="field"><label>Assigned to</label><select id="t-assignee"></select></div>
+      <div class="field"><label>Due date</label><input id="t-due" type="date"></div>
+      <div class="field"><label>Due time</label><input id="t-time" type="time"></div>
+      <div class="field"><label>Priority</label><select id="t-priority"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
+      <div class="field"><label>Category</label><select id="t-category"><option>Callback</option><option>Follow-up</option><option>Site visit prep</option><option>Payment reminder</option><option>Quote follow-up</option><option>Internal</option><option>Other</option></select></div>
+      <div class="field" style="grid-column:1/-1;"><label>Notes</label><textarea id="t-notes" placeholder="Any details, context or next steps"></textarea></div>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-outline" data-close="modal-task">Cancel</button>
+    <button class="btn btn-amber" id="btn-save-task">Save task</button>
+  </div>
+</div>
+
+
 <div id="print-area"></div>
 <div id="toast-wrap"></div>
 
@@ -920,6 +977,7 @@ const NAV_ROLES = {
   dashboard:['Admin','Sales Executive','Technician'],
   leads:['Admin','Sales Executive','Technician'],
   visits:['Admin','Sales Executive','Technician'],
+  tasks:['Admin','Sales Executive','Technician'],
   quotes:['Admin','Sales Executive'],
   invoices:['Admin','Sales Executive'],
   finance:['Admin','Sales Executive'],
@@ -935,6 +993,7 @@ let state = {
   quotes: [],
   visits: [],
   expenses: [],
+  tasks: [],
   team: [],
   currentUserId: 1,
   settings: {
@@ -1198,6 +1257,7 @@ document.querySelectorAll('.nav-item').forEach(btn=>{
       dashboard:['Dashboard','Live overview of your solar service pipeline'],
       leads:['Leads','All leads from website, Facebook and manual entry'],
       visits:['Site Visits','Scheduled surveys, installations and maintenance visits'],
+      tasks:['Tasks','Follow-ups, callbacks and any work you need to remember'],
       quotes:['Quotes','System sizing and customer quotations'],
       invoices:['Invoices','Generated invoices and payment status'],
       finance:['Finance','Payments, reminders and job expenses'],
@@ -1212,6 +1272,7 @@ document.querySelectorAll('.nav-item').forEach(btn=>{
     if(v==='dashboard') renderDashboard();
     if(v==='leads') renderLeads();
     if(v==='visits') renderVisits();
+    if(v==='tasks') renderTasks();
     if(v==='quotes') renderQuotes();
     if(v==='invoices') renderInvoices();
     if(v==='finance') renderFinance();
@@ -2399,6 +2460,216 @@ document.getElementById('btn-save-settings').addEventListener('click', ()=>{
   toast('Settings saved');
 });
 
+/* ============================= TASKS ============================= */
+let editingTaskId = null;
+
+function taskDueTs(t){
+  if(!t.dueDate) return null;
+  const time = t.dueTime || '09:00';
+  return new Date(t.dueDate + 'T' + time).getTime();
+}
+function taskIsOverdue(t){
+  if(t.done) return false;
+  const ts = taskDueTs(t);
+  return ts !== null && ts < Date.now();
+}
+function taskIsToday(t){
+  const ts = taskDueTs(t);
+  if(ts===null) return false;
+  const d = new Date(ts); const n = new Date();
+  return d.getFullYear()===n.getFullYear() && d.getMonth()===n.getMonth() && d.getDate()===n.getDate();
+}
+function fmtTaskDue(t){
+  const ts = taskDueTs(t);
+  if(ts===null) return 'No due date';
+  const d = new Date(ts);
+  const same = (a,b)=>a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
+  const now = new Date(); const tmr = new Date(); tmr.setDate(tmr.getDate()+1);
+  const dayLabel = same(d,now) ? 'Today' : same(d,tmr) ? 'Tomorrow' : d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
+  const timeLabel = t.dueTime ? ' · ' + d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}) : '';
+  return dayLabel + timeLabel;
+}
+function updateTaskNavBadge(){
+  const el = document.getElementById('nav-task-count');
+  if(!el) return;
+  const openCount = (state.tasks||[]).filter(t=>!t.done && (taskIsOverdue(t) || taskIsToday(t))).length;
+  el.textContent = openCount;
+  el.style.display = openCount ? '' : 'none';
+}
+
+function populateTaskSelects(){
+  const leadSel = document.getElementById('t-lead');
+  const assignSel = document.getElementById('t-assignee');
+  const filterAssign = document.getElementById('filter-task-assignee');
+  if(leadSel){
+    leadSel.innerHTML = '<option value="">— None —</option>' +
+      state.leads.slice().sort((a,b)=>a.name.localeCompare(b.name))
+        .map(l=>`<option value="${l.id}">${l.name} · ${l.phone||''}</option>`).join('');
+  }
+  if(assignSel){
+    assignSel.innerHTML = state.team.map(m=>`<option value="${m.id}">${m.name} (${m.role})</option>`).join('');
+  }
+  if(filterAssign){
+    const prev = filterAssign.value;
+    filterAssign.innerHTML = '<option value="">All assignees</option>' +
+      state.team.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
+    filterAssign.value = prev;
+  }
+}
+
+function openTaskModal(taskId){
+  populateTaskSelects();
+  editingTaskId = taskId || null;
+  const t = taskId ? state.tasks.find(x=>x.id===taskId) : null;
+  document.getElementById('task-modal-title').textContent = t ? 'Edit task' : 'New task';
+  document.getElementById('t-title').value = t?.title || '';
+  document.getElementById('t-lead').value = t?.leadId || '';
+  document.getElementById('t-assignee').value = t?.assigneeId || state.currentUserId || (state.team[0]&&state.team[0].id) || '';
+  document.getElementById('t-due').value = t?.dueDate || new Date().toISOString().slice(0,10);
+  document.getElementById('t-time').value = t?.dueTime || '';
+  document.getElementById('t-priority').value = t?.priority || 'Medium';
+  document.getElementById('t-category').value = t?.category || 'Callback';
+  document.getElementById('t-notes').value = t?.notes || '';
+  openModal('modal-task');
+}
+
+document.getElementById('btn-new-task').addEventListener('click', ()=> openTaskModal(null));
+
+document.getElementById('btn-save-task').addEventListener('click', ()=>{
+  const title = document.getElementById('t-title').value.trim();
+  if(!title){ toast('Please enter a task title', 'warn'); return; }
+  const leadIdRaw = document.getElementById('t-lead').value;
+  const assigneeIdRaw = document.getElementById('t-assignee').value;
+  const payload = {
+    title,
+    leadId: leadIdRaw ? parseInt(leadIdRaw) : null,
+    assigneeId: assigneeIdRaw ? parseInt(assigneeIdRaw) : null,
+    dueDate: document.getElementById('t-due').value || '',
+    dueTime: document.getElementById('t-time').value || '',
+    priority: document.getElementById('t-priority').value,
+    category: document.getElementById('t-category').value,
+    notes: document.getElementById('t-notes').value.trim()
+  };
+  if(editingTaskId){
+    const t = state.tasks.find(x=>x.id===editingTaskId);
+    Object.assign(t, payload, {updatedAt: Date.now()});
+    toast('Task updated');
+  } else {
+    const id = (state.tasks.reduce((m,t)=>Math.max(m,t.id||0),0) || 0) + 1;
+    state.tasks.push(Object.assign({id, done:false, createdAt: Date.now()}, payload));
+    toast('Task added');
+  }
+  editingTaskId = null;
+  saveState(); closeModal('modal-task'); renderTasks(); renderDashboard();
+});
+
+function toggleTaskDone(id){
+  const t = state.tasks.find(x=>x.id===id); if(!t) return;
+  t.done = !t.done;
+  t.completedAt = t.done ? Date.now() : null;
+  saveState(); renderTasks();
+}
+function deleteTask(id){
+  if(!confirm('Delete this task?')) return;
+  state.tasks = state.tasks.filter(x=>x.id!==id);
+  saveState(); renderTasks();
+}
+window.__tasks = { toggle: toggleTaskDone, edit: (id)=>openTaskModal(id), del: deleteTask };
+
+function renderTasks(){
+  if(!state.tasks) state.tasks = [];
+  populateTaskSelects();
+  updateTaskNavBadge();
+  const q = (document.getElementById('task-search').value||'').toLowerCase();
+  const fs = document.getElementById('filter-task-status').value;
+  const fp = document.getElementById('filter-task-priority').value;
+  const fa = document.getElementById('filter-task-assignee').value;
+
+  const all = state.tasks.slice();
+  const openTasks = all.filter(t=>!t.done);
+  const overdueCount = openTasks.filter(taskIsOverdue).length;
+  const todayCount = openTasks.filter(t=>!taskIsOverdue(t) && taskIsToday(t)).length;
+  const upcomingCount = openTasks.filter(t=>!taskIsOverdue(t) && !taskIsToday(t)).length;
+  const doneCount = all.filter(t=>t.done).length;
+
+  document.getElementById('task-readouts').innerHTML = [
+    {label:'Overdue', value:overdueCount, cls:'down', delta:'need attention now', up:false},
+    {label:'Due today', value:todayCount, cls:'up', delta:'closes out today', up:true},
+    {label:'Upcoming', value:upcomingCount, cls:'up', delta:'scheduled ahead', up:true},
+    {label:'Completed', value:doneCount, cls:'up', delta:'done so far', up:true}
+  ].map(r=>`<div class="readout"><div class="label">${r.label}</div><div class="value">${r.value}</div><div class="delta ${r.up?'up':'down'}">${r.up?'▲':'▼'} ${r.delta}</div></div>`).join('');
+
+  let filtered = all.filter(t=>{
+    if(fs==='open' && t.done) return false;
+    if(fs==='done' && !t.done) return false;
+    if(fs==='overdue' && !taskIsOverdue(t)) return false;
+    if(fs==='today' && !taskIsToday(t)) return false;
+    if(fp && t.priority!==fp) return false;
+    if(fa && String(t.assigneeId)!==String(fa)) return false;
+    if(q){
+      const lead = t.leadId ? state.leads.find(l=>l.id===t.leadId) : null;
+      const hay = (t.title+' '+(t.notes||'')+' '+(lead?lead.name+' '+lead.phone:'')+' '+(t.category||'')).toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  filtered.sort((a,b)=>{
+    if(a.done!==b.done) return a.done?1:-1;
+    const at = taskDueTs(a), bt = taskDueTs(b);
+    if(at===null && bt===null) return b.createdAt - a.createdAt;
+    if(at===null) return 1;
+    if(bt===null) return -1;
+    return at - bt;
+  });
+
+  const list = document.getElementById('task-list');
+  if(!filtered.length){
+    list.innerHTML = `<div class="card" style="text-align:center;padding:36px;color:var(--ink-soft);">No tasks match these filters. Click <b>New task</b> to add one.</div>`;
+    return;
+  }
+
+  const prioColors = {High:'#FF3131', Medium:'#D9860F', Low:'#3B6FA6'};
+  list.innerHTML = `<div class="card" style="padding:0;overflow:hidden;">
+    ${filtered.map(t=>{
+      const lead = t.leadId ? state.leads.find(l=>l.id===t.leadId) : null;
+      const assignee = t.assigneeId ? state.team.find(m=>m.id===t.assigneeId) : null;
+      const overdue = taskIsOverdue(t);
+      const dueClass = t.done ? 'ink-faint' : overdue ? 'due-overdue' : taskIsToday(t) ? 'due-today' : 'ink-soft';
+      const waHref = lead && lead.phone ? `https://web.whatsapp.com/send?phone=${lead.phone.replace(/\D/g,'')}&text=${encodeURIComponent('Hi '+lead.name+', this is '+state.settings.company+' — following up on your request.')}` : '';
+      return `<div style="display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-bottom:1px solid var(--line);${t.done?'opacity:0.6;':''}">
+        <input type="checkbox" ${t.done?'checked':''} onchange="window.__tasks.toggle(${t.id})" style="margin-top:4px;width:18px;height:18px;cursor:pointer;flex-shrink:0;">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <div style="font-weight:600;color:var(--ink);${t.done?'text-decoration:line-through;':''}">${t.title}</div>
+            <span style="font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:10px;background:${prioColors[t.priority]}22;color:${prioColors[t.priority]};">${t.priority}</span>
+            <span style="font-size:10.5px;color:var(--ink-soft);background:var(--navy-1);padding:2px 8px;border-radius:10px;">${t.category||'Task'}</span>
+            ${overdue?'<span style="font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:10px;background:#FF313122;color:#FF3131;">OVERDUE</span>':''}
+          </div>
+          ${t.notes?`<div style="font-size:12.5px;color:var(--ink-soft);margin-top:4px;white-space:pre-wrap;">${t.notes.replace(/</g,'&lt;')}</div>`:''}
+          <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;font-size:12px;color:var(--ink-soft);">
+            <span class="${dueClass}" style="${overdue&&!t.done?'color:#FF3131;font-weight:600;':''}">🕒 ${fmtTaskDue(t)}</span>
+            ${lead?`<span>👤 <b>${lead.name}</b> · ${lead.phone||''}</span>`:''}
+            ${assignee?`<span>👷 ${assignee.name}</span>`:''}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          ${lead&&lead.phone?`<a class="btn btn-outline btn-sm" href="tel:${lead.phone}">Call</a>`:''}
+          ${waHref?`<a class="btn btn-whatsapp btn-sm" target="_blank" rel="noopener noreferrer" href="${waHref}">WhatsApp</a>`:''}
+          <button class="btn btn-outline btn-sm" onclick="window.__tasks.edit(${t.id})">Edit</button>
+          <button class="btn btn-outline btn-sm" onclick="window.__tasks.del(${t.id})" style="color:#D0453A;">Delete</button>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+['task-search','filter-task-status','filter-task-priority','filter-task-assignee'].forEach(id=>{
+  const el = document.getElementById(id);
+  if(el) el.addEventListener('input', renderTasks);
+  if(el) el.addEventListener('change', renderTasks);
+});
+
 /* ============================= INIT ============================= */
 async function init(){
   document.getElementById('brand-logo-img').src = LOGO_DATA_URI;
@@ -2407,10 +2678,12 @@ async function init(){
     seedData();
     await saveState();
   }
+  if(!state.tasks) state.tasks = [];
   document.querySelector('.brand-text .name').textContent = state.settings.company;
   renderViewingAs();
   renderDashboard();
   renderLeads();
+  updateTaskNavBadge();
 }
 init();
 
