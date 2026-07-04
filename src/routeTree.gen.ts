@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as BookTokenRouteImport } from './routes/book.$token'
 import { Route as ApiAiAssistRouteImport } from './routes/api/ai-assist'
 
 const AuthRoute = AuthRouteImport.update({
@@ -28,6 +29,11 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const BookTokenRoute = BookTokenRouteImport.update({
+  id: '/book/$token',
+  path: '/book/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAiAssistRoute = ApiAiAssistRouteImport.update({
   id: '/api/ai-assist',
   path: '/api/ai-assist',
@@ -38,10 +44,12 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/auth': typeof AuthRoute
   '/api/ai-assist': typeof ApiAiAssistRoute
+  '/book/$token': typeof BookTokenRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/api/ai-assist': typeof ApiAiAssistRoute
+  '/book/$token': typeof BookTokenRoute
   '/': typeof AuthenticatedIndexRoute
 }
 export interface FileRoutesById {
@@ -49,18 +57,20 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/api/ai-assist': typeof ApiAiAssistRoute
+  '/book/$token': typeof BookTokenRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/api/ai-assist'
+  fullPaths: '/' | '/auth' | '/api/ai-assist' | '/book/$token'
   fileRoutesByTo: FileRoutesByTo
-  to: '/auth' | '/api/ai-assist' | '/'
+  to: '/auth' | '/api/ai-assist' | '/book/$token' | '/'
   id:
     | '__root__'
     | '/_authenticated'
     | '/auth'
     | '/api/ai-assist'
+    | '/book/$token'
     | '/_authenticated/'
   fileRoutesById: FileRoutesById
 }
@@ -68,6 +78,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ApiAiAssistRoute: typeof ApiAiAssistRoute
+  BookTokenRoute: typeof BookTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -92,6 +103,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/book/$token': {
+      id: '/book/$token'
+      path: '/book/$token'
+      fullPath: '/book/$token'
+      preLoaderRoute: typeof BookTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/ai-assist': {
       id: '/api/ai-assist'
@@ -118,6 +136,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ApiAiAssistRoute: ApiAiAssistRoute,
+  BookTokenRoute: BookTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

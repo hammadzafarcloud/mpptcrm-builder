@@ -44,7 +44,7 @@ function PublicBookingPage() {
         .maybeSingle();
       if (error) setError(error.message);
       else if (!data) setError("This booking link is not available.");
-      else setLink(data as LinkRow);
+      else setLink(data as unknown as LinkRow);
       setLoading(false);
     })();
   }, [token]);
