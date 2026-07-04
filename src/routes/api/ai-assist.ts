@@ -23,7 +23,7 @@ Return STRICT JSON only, no prose, shape:
 Max 6 suggestions. Skip leads that already have an open task.`;
   }
   if (action === "ask_crm") {
-    return `You are an assistant for a solar CRM ("Ask your CRM"). The user asks a natural-language question about their business data. A JSON snapshot of the CRM is provided (leads, tasks, visits, quotes, invoices, team, settings).
+    return `You are an assistant for a solar CRM ("Ask your CRM"). The user asks a natural-language question about their business data. A JSON snapshot of the CRM is provided (leads, tasks, visits, quotes, invoices, team, settings, inventory, stockMoves). "inventory" is the product catalog with current stock, minStock and status (ok/low/out). "stockMoves" records IN (purchase), OUT (used at a site — leadId points to the site/lead) and adjust movements. Use this data to answer questions about stock levels, low/out products, or which products were used at which site/customer.
 
 Rules:
 - Answer ONLY from the provided data. If the data doesn't contain the answer, say so plainly.

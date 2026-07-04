@@ -3274,13 +3274,23 @@ function buildCrmSnapshot(){
     status:i.status, dueDate:i.dueDate, createdAt:i.createdAt
   }));
   const team = (state.team||[]).map(m=>({ id:m.id, name:m.name, role:m.role }));
+  const inventory = (state.inventory||[]).map(p=>({
+    id:p.id, name:p.name, category:p.category, sku:p.sku, unit:p.unit,
+    price:p.price, stock:p.stock, minStock:p.minStock,
+    status: (p.stock<=0?'out':(p.stock<=(p.minStock||0)?'low':'ok'))
+  }));
+  const stockMoves = (state.stockMoves||[]).slice(-80).map(m=>({
+    id:m.id, productId:m.productId, qty:m.qty, type:m.type,
+    leadId:m.leadId, date:m.date, note:(m.note||'').slice(0,120)
+  }));
   return {
     today: new Date().toISOString(),
     settings: { company: state.settings.company, currency: state.settings.currency||'₹' },
-    counts: { leads:leads.length, tasks:tasks.length, visits:visits.length, quotes:quotes.length, invoices:invoices.length },
-    team, leads, tasks, visits, quotes, invoices
+    counts: { leads:leads.length, tasks:tasks.length, visits:visits.length, quotes:quotes.length, invoices:invoices.length, products:inventory.length, stockMoves:stockMoves.length },
+    team, leads, tasks, visits, quotes, invoices, inventory, stockMoves
   };
 }
+
 
 function renderAskChat(){
   const items = window.__askHistory;
