@@ -928,6 +928,28 @@ tbody tr:hover{background:var(--paper-2);}
   </div>
 </div>
 
+<!-- TASK MODAL -->
+<div class="modal" id="modal-task">
+  <div class="modal-head"><h3 id="task-modal-title">New task</h3><button class="close-x" data-close="modal-task">✕</button></div>
+  <div class="modal-body">
+    <div class="field-grid">
+      <div class="field" style="grid-column:1/-1;"><label>Title</label><input id="t-title" placeholder="e.g. Call Ahmed about payment follow-up"></div>
+      <div class="field"><label>Related lead (optional)</label><select id="t-lead"><option value="">— None —</option></select></div>
+      <div class="field"><label>Assigned to</label><select id="t-assignee"></select></div>
+      <div class="field"><label>Due date</label><input id="t-due" type="date"></div>
+      <div class="field"><label>Due time</label><input id="t-time" type="time"></div>
+      <div class="field"><label>Priority</label><select id="t-priority"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
+      <div class="field"><label>Category</label><select id="t-category"><option>Callback</option><option>Follow-up</option><option>Site visit prep</option><option>Payment reminder</option><option>Quote follow-up</option><option>Internal</option><option>Other</option></select></div>
+      <div class="field" style="grid-column:1/-1;"><label>Notes</label><textarea id="t-notes" placeholder="Any details, context or next steps"></textarea></div>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-outline" data-close="modal-task">Cancel</button>
+    <button class="btn btn-amber" id="btn-save-task">Save task</button>
+  </div>
+</div>
+
+
 <div id="print-area"></div>
 <div id="toast-wrap"></div>
 
