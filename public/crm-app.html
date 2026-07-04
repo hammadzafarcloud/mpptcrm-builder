@@ -534,6 +534,10 @@ tbody tr:hover{background:var(--paper-2);}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>
         Inventory <span class="nav-badge" id="nav-inv-low" style="background:#D0453A">0</span>
       </button>
+      <button class="nav-item" data-view="expenses">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h18v13H3z"/><path d="M3 11h18M7 15h4"/><circle cx="16.5" cy="16" r="1.2"/></svg>
+        Expenses <span class="nav-badge" id="nav-exp-today">0</span>
+      </button>
       <button class="nav-item" data-view="finance">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
         Finance
@@ -749,6 +753,39 @@ tbody tr:hover{background:var(--paper-2);}
           <div id="inv-moves"></div>
         </div>
       </div>
+
+      <!-- EXPENSES -->
+      <div class="view" id="view-expenses">
+        <div class="readout-grid" id="exp-readouts" style="grid-template-columns:repeat(4,1fr);"></div>
+        <div class="table-toolbar" style="flex-wrap:wrap;gap:8px;margin-top:14px;">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <input type="text" id="exp-search" placeholder="Search description, notes, vendor…">
+          </div>
+          <select id="exp-filter-member" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;"><option value="">All team members</option></select>
+          <select id="exp-filter-cat2" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;">
+            <option value="">All categories</option>
+            <option>Materials</option><option>Labor</option><option>Transport</option>
+            <option>Fuel</option><option>Food / Refreshment</option><option>Tools</option>
+            <option>Permits / Net Metering</option><option>Rent / Utility</option><option>Misc</option>
+          </select>
+          <select id="exp-filter-site" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;"><option value="">All sites</option></select>
+          <select id="exp-filter-range" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;">
+            <option value="all">All time</option>
+            <option value="today">Today</option>
+            <option value="7">Last 7 days</option>
+            <option value="30" selected>Last 30 days</option>
+            <option value="month">This month</option>
+          </select>
+          <div style="flex:1"></div>
+          <button class="btn btn-amber btn-sm" id="btn-new-expense">+ Add expense</button>
+        </div>
+        <div class="card" style="margin-top:12px;padding:0;overflow:hidden;">
+          <div id="exp-table"></div>
+        </div>
+      </div>
+
+
 
       <!-- FINANCE -->
       <div class="view" id="view-finance">
@@ -1098,7 +1135,49 @@ tbody tr:hover{background:var(--paper-2);}
   </div>
 </div>
 
+<!-- EXPENSE: add/edit -->
+<div class="modal" id="modal-expense">
+  <div class="modal-head"><h3 id="ex-modal-title">Add expense</h3><button class="close-x" data-close="modal-expense">✕</button></div>
+  <div class="modal-body">
+    <div class="field-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="field" style="grid-column:1/-1;"><label>Description *</label><input id="ex-desc" placeholder="e.g. Cement, cable clips for Bahria Town site"></div>
+      <div class="field"><label>Category</label>
+        <select id="ex-category">
+          <option>Materials</option><option>Labor</option><option>Transport</option>
+          <option>Fuel</option><option>Food / Refreshment</option><option>Tools</option>
+          <option>Permits / Net Metering</option><option>Rent / Utility</option><option>Misc</option>
+        </select>
+      </div>
+      <div class="field"><label>Amount (PKR) *</label><input id="ex-amount" type="number" placeholder="0"></div>
+      <div class="field"><label>Date</label><input id="ex-date" type="date"></div>
+      <div class="field"><label>Paid by (team)</label><select id="ex-member"><option value="">— select —</option></select></div>
+      <div class="field" style="grid-column:1/-1;"><label>Site / Lead (optional)</label><select id="ex-lead2"><option value="">— none —</option></select></div>
+      <div class="field"><label>Payment method</label>
+        <select id="ex-method">
+          <option>Cash</option><option>Bank transfer</option><option>Card</option><option>JazzCash / Easypaisa</option><option>Company account</option>
+        </select>
+      </div>
+      <div class="field"><label>Vendor / Shop</label><input id="ex-vendor" placeholder="e.g. Hafeez Center, Shell Gulberg"></div>
+      <div class="field" style="grid-column:1/-1;"><label>Notes</label><textarea id="ex-notes" placeholder="Reference #, remarks…"></textarea></div>
+      <div class="field" style="grid-column:1/-1;">
+        <label>Receipt / Screenshot <span class="hint">(bill photo, screenshot of transfer)</span></label>
+        <input id="ex-file" type="file" accept="image/*" style="padding:6px 0;">
+        <div id="ex-preview" style="margin-top:8px;"></div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-outline" data-close="modal-expense">Cancel</button>
+    <button class="btn btn-amber" id="btn-save-expense">Save expense</button>
+  </div>
+</div>
 
+<!-- EXPENSE: image viewer -->
+<div class="modal wide" id="modal-expense-view">
+  <div class="modal-head"><h3 id="exv-title">Receipt</h3><button class="close-x" data-close="modal-expense-view">✕</button></div>
+  <div class="modal-body" id="exv-body" style="text-align:center;"></div>
+  <div class="modal-foot"><button class="btn btn-outline" data-close="modal-expense-view">Close</button></div>
+</div>
 
 
 <div id="print-area"></div>
@@ -1488,6 +1567,7 @@ document.querySelectorAll('.nav-item').forEach(btn=>{
       invoices:['Invoices','Generated invoices and payment status'],
       bookings:['Bookings','Shareable service menus — clients book, invoices auto-generate'],
       inventory:['Inventory','Products, stock levels and site-wise usage'],
+      expenses:['Expenses','Daily team spending with receipts and site tracking'],
       finance:['Finance','Payments, reminders and job expenses'],
       reports:['Reports','Pipeline and revenue performance'],
       team:['Team','Manage your staff and role-based access'],
@@ -1505,6 +1585,7 @@ document.querySelectorAll('.nav-item').forEach(btn=>{
     if(v==='invoices') renderInvoices();
     if(v==='bookings') renderBookings();
     if(v==='inventory') renderInventory();
+    if(v==='expenses') renderExpenses();
     if(v==='finance') renderFinance();
     if(v==='reports') renderReports();
     if(v==='team') renderTeam();
@@ -3283,11 +3364,17 @@ function buildCrmSnapshot(){
     id:m.id, productId:m.productId, qty:m.qty, type:m.type,
     leadId:m.leadId, date:m.date, note:(m.note||'').slice(0,120)
   }));
+  const expenses = (state.expenses||[]).map(e=>({
+    id:e.id, desc:(e.desc||'').slice(0,140), category:e.category, amount:e.amount,
+    date:e.date, memberId:e.memberId||null, leadId:e.leadId||null,
+    method:e.method||null, vendor:e.vendor||null, hasReceipt: !!e.receipt,
+    notes:(e.notes||'').slice(0,160)
+  }));
   return {
     today: new Date().toISOString(),
     settings: { company: state.settings.company, currency: state.settings.currency||'₹' },
-    counts: { leads:leads.length, tasks:tasks.length, visits:visits.length, quotes:quotes.length, invoices:invoices.length, products:inventory.length, stockMoves:stockMoves.length },
-    team, leads, tasks, visits, quotes, invoices, inventory, stockMoves
+    counts: { leads:leads.length, tasks:tasks.length, visits:visits.length, quotes:quotes.length, invoices:invoices.length, products:inventory.length, stockMoves:stockMoves.length, expenses:expenses.length },
+    team, leads, tasks, visits, quotes, invoices, inventory, stockMoves, expenses
   };
 }
 
@@ -3756,6 +3843,244 @@ window.__inv = {
   detail: openProductDetail
 };
 
+/* ============================= EXPENSES ============================= */
+let __expenseEditId = null;
+let __expenseImg = null; // dataURL pending save
+
+function updateExpTodayBadge(){
+  const el = document.getElementById('nav-exp-today');
+  if(!el) return;
+  const t0 = new Date(); t0.setHours(0,0,0,0);
+  const n = (state.expenses||[]).filter(e=>e.date>=t0.getTime()).length;
+  el.textContent = n;
+  el.style.background = n ? '#F5B841' : '#94a3b8';
+  el.style.color = '#1a1a1a';
+}
+
+function renderExpenses(){
+  if(!state.expenses) state.expenses = [];
+  updateExpTodayBadge();
+
+  // Populate filters
+  const memSel = document.getElementById('exp-filter-member');
+  memSel.innerHTML = '<option value="">All team members</option>' +
+    (state.team||[]).map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+  const siteSel = document.getElementById('exp-filter-site');
+  siteSel.innerHTML = '<option value="">All sites</option>' +
+    (state.leads||[]).map(l=>`<option value="${l.id}">${escapeHtml(l.name)}</option>`).join('');
+
+  const q = (document.getElementById('exp-search').value||'').toLowerCase().trim();
+  const memF = document.getElementById('exp-filter-member').value;
+  const catF = document.getElementById('exp-filter-cat2').value;
+  const siteF = document.getElementById('exp-filter-site').value;
+  const rangeF = document.getElementById('exp-filter-range').value;
+
+  const now = new Date();
+  const t0 = new Date(); t0.setHours(0,0,0,0);
+  let cutoff = 0;
+  if(rangeF==='today') cutoff = t0.getTime();
+  else if(rangeF==='7') cutoff = Date.now() - 7*86400000;
+  else if(rangeF==='30') cutoff = Date.now() - 30*86400000;
+  else if(rangeF==='month'){ const m = new Date(now.getFullYear(), now.getMonth(), 1); cutoff = m.getTime(); }
+
+  let list = [...(state.expenses||[])].sort((a,b)=>b.date-a.date);
+  if(cutoff) list = list.filter(e=>e.date>=cutoff);
+  if(q) list = list.filter(e=> (e.desc||'').toLowerCase().includes(q) || (e.notes||'').toLowerCase().includes(q) || (e.vendor||'').toLowerCase().includes(q));
+  if(memF) list = list.filter(e=> String(e.memberId||'')===memF);
+  if(catF) list = list.filter(e=> e.category===catF);
+  if(siteF) list = list.filter(e=> String(e.leadId||'')===siteF);
+
+  // Readouts (based on filtered list)
+  const total = list.reduce((s,e)=>s+(e.amount||0),0);
+  const todayTotal = list.filter(e=>e.date>=t0.getTime()).reduce((s,e)=>s+(e.amount||0),0);
+  const withReceipt = list.filter(e=>e.receipt).length;
+  const uniqueSites = new Set(list.filter(e=>e.leadId).map(e=>e.leadId)).size;
+  document.getElementById('exp-readouts').innerHTML = [
+    {label:'Total (filtered)', value: fmtMoney(total)},
+    {label:'Today', value: fmtMoney(todayTotal)},
+    {label:'Entries', value: String(list.length)},
+    {label:'With receipt', value: withReceipt+' / '+list.length},
+  ].map(r=>`<div class="readout"><div class="readout-label">${r.label}</div><div class="readout-value">${r.value}</div></div>`).join('') +
+    `<div class="readout" style="grid-column:auto;"><div class="readout-label">Sites covered</div><div class="readout-value">${uniqueSites}</div></div>`;
+
+  const wrap = document.getElementById('exp-table');
+  if(!list.length){ wrap.innerHTML = emptyMsg('No expenses match — try clearing filters or add a new one.'); return; }
+  wrap.innerHTML = `
+    <table>
+      <thead><tr>
+        <th style="width:60px;">Bill</th><th>Description</th><th>Category</th><th>Paid by</th><th>Site</th><th>Method</th><th>Date</th><th>Amount</th><th></th>
+      </tr></thead>
+      <tbody>
+        ${list.map(e=>{
+          const lead = e.leadId ? (state.leads||[]).find(l=>l.id===e.leadId) : null;
+          const mem = e.memberId ? (state.team||[]).find(m=>m.id===e.memberId) : null;
+          const thumb = e.receipt
+            ? `<img src="${e.receipt}" alt="receipt" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--line);cursor:zoom-in;" onclick="window.__exp.view(${e.id})">`
+            : `<div style="width:44px;height:44px;border-radius:6px;border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:11px;">—</div>`;
+          return `<tr>
+            <td>${thumb}</td>
+            <td><div style="font-weight:600;">${escapeHtml(e.desc||'')}</div>${e.vendor?`<div class="cell-sub">${escapeHtml(e.vendor)}</div>`:''}</td>
+            <td><span class="badge" style="background:var(--paper-2);color:var(--ink-soft)">${escapeHtml(e.category||'Misc')}</span></td>
+            <td>${mem?escapeHtml(mem.name):'—'}</td>
+            <td>${lead?escapeHtml(lead.name):'—'}</td>
+            <td class="cell-sub">${escapeHtml(e.method||'—')}</td>
+            <td class="cell-sub">${fmtDate(e.date)}</td>
+            <td style="font-family:var(--font-mono);font-weight:600;">${fmtMoney(e.amount)}</td>
+            <td style="text-align:right;white-space:nowrap;">
+              <button class="btn btn-outline btn-sm" onclick="window.__exp.edit(${e.id})">Edit</button>
+              <button class="btn btn-outline btn-sm" onclick="window.__exp.remove(${e.id})">Delete</button>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+function openExpenseModal(id){
+  __expenseEditId = id || null;
+  __expenseImg = null;
+  const memSel = document.getElementById('ex-member');
+  memSel.innerHTML = '<option value="">— select —</option>' + (state.team||[]).map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+  const leadSel = document.getElementById('ex-lead2');
+  leadSel.innerHTML = '<option value="">— none —</option>' + (state.leads||[]).map(l=>`<option value="${l.id}">${escapeHtml(l.name)}</option>`).join('');
+  const today = new Date().toISOString().slice(0,10);
+  const preview = document.getElementById('ex-preview');
+  const fileInput = document.getElementById('ex-file');
+  fileInput.value = '';
+
+  if(id){
+    const e = (state.expenses||[]).find(x=>x.id===id);
+    if(!e) return;
+    document.getElementById('ex-modal-title').textContent = 'Edit expense';
+    document.getElementById('ex-desc').value = e.desc||'';
+    document.getElementById('ex-category').value = e.category||'Misc';
+    document.getElementById('ex-amount').value = e.amount||'';
+    document.getElementById('ex-date').value = new Date(e.date||Date.now()).toISOString().slice(0,10);
+    memSel.value = e.memberId||'';
+    leadSel.value = e.leadId||'';
+    document.getElementById('ex-method').value = e.method||'Cash';
+    document.getElementById('ex-vendor').value = e.vendor||'';
+    document.getElementById('ex-notes').value = e.notes||'';
+    __expenseImg = e.receipt || null;
+    preview.innerHTML = e.receipt ? `<img src="${e.receipt}" style="max-width:100%;max-height:220px;border-radius:8px;border:1px solid var(--line);"><div style="margin-top:6px;"><button class="btn btn-outline btn-sm" type="button" onclick="window.__exp.clearImg()">Remove receipt</button></div>` : '';
+  } else {
+    document.getElementById('ex-modal-title').textContent = 'Add expense';
+    document.getElementById('ex-desc').value = '';
+    document.getElementById('ex-category').value = 'Materials';
+    document.getElementById('ex-amount').value = '';
+    document.getElementById('ex-date').value = today;
+    memSel.value = state.currentUserId || '';
+    leadSel.value = '';
+    document.getElementById('ex-method').value = 'Cash';
+    document.getElementById('ex-vendor').value = '';
+    document.getElementById('ex-notes').value = '';
+    preview.innerHTML = '';
+  }
+  openModal('modal-expense');
+}
+
+function compressImageFile(file, maxDim, quality){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      const img = new Image();
+      img.onload = ()=>{
+        let {width, height} = img;
+        if(width > maxDim || height > maxDim){
+          if(width >= height){ height = Math.round(height * maxDim / width); width = maxDim; }
+          else { width = Math.round(width * maxDim / height); height = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+document.addEventListener('change', async (ev)=>{
+  if(ev.target && ev.target.id === 'ex-file'){
+    const f = ev.target.files && ev.target.files[0];
+    if(!f) return;
+    try{
+      const dataUrl = await compressImageFile(f, 1400, 0.78);
+      __expenseImg = dataUrl;
+      document.getElementById('ex-preview').innerHTML =
+        `<img src="${dataUrl}" style="max-width:100%;max-height:220px;border-radius:8px;border:1px solid var(--line);"><div style="margin-top:6px;"><button class="btn btn-outline btn-sm" type="button" onclick="window.__exp.clearImg()">Remove receipt</button></div>`;
+    }catch(e){ toast('Could not read image', 'info'); }
+  }
+});
+
+async function saveExpenseFromModal(){
+  const desc = document.getElementById('ex-desc').value.trim();
+  const amount = parseFloat(document.getElementById('ex-amount').value)||0;
+  if(!desc || amount<=0){ toast('Enter description and amount', 'info'); return; }
+  const category = document.getElementById('ex-category').value;
+  const dateStr = document.getElementById('ex-date').value;
+  const date = dateStr ? new Date(dateStr).getTime() : Date.now();
+  const memberId = parseInt(document.getElementById('ex-member').value)||null;
+  const leadId = parseInt(document.getElementById('ex-lead2').value)||null;
+  const method = document.getElementById('ex-method').value;
+  const vendor = document.getElementById('ex-vendor').value.trim();
+  const notes = document.getElementById('ex-notes').value.trim();
+
+  if(__expenseEditId){
+    const e = state.expenses.find(x=>x.id===__expenseEditId);
+    if(e){ Object.assign(e, { desc, category, amount, date, memberId, leadId, method, vendor, notes, receipt: __expenseImg||null, updatedAt: Date.now() }); }
+  } else {
+    state.expenses.push({
+      id: state.nextExpenseId++,
+      desc, category, amount, date, memberId, leadId, method, vendor, notes,
+      receipt: __expenseImg||null,
+      createdAt: Date.now()
+    });
+  }
+  await saveState();
+  closeModal('modal-expense');
+  renderExpenses();
+  toast('Expense saved');
+}
+
+async function deleteExpense(id){
+  if(!confirm('Delete this expense?')) return;
+  state.expenses = state.expenses.filter(e=>e.id!==id);
+  await saveState(); renderExpenses(); toast('Expense deleted');
+}
+
+function viewExpenseReceipt(id){
+  const e = (state.expenses||[]).find(x=>x.id===id);
+  if(!e || !e.receipt) return;
+  document.getElementById('exv-title').textContent = e.desc||'Receipt';
+  document.getElementById('exv-body').innerHTML = `<img src="${e.receipt}" style="max-width:100%;max-height:70vh;border-radius:8px;">`;
+  openModal('modal-expense-view');
+}
+
+window.__exp = {
+  edit: openExpenseModal,
+  remove: deleteExpense,
+  view: viewExpenseReceipt,
+  clearImg: ()=>{ __expenseImg=null; document.getElementById('ex-preview').innerHTML=''; document.getElementById('ex-file').value=''; }
+};
+
+document.addEventListener('click', (ev)=>{
+  const t = ev.target;
+  if(!t) return;
+  if(t.id === 'btn-new-expense'){ openExpenseModal(null); }
+  if(t.id === 'btn-save-expense'){ saveExpenseFromModal(); }
+});
+['exp-search','exp-filter-member','exp-filter-cat2','exp-filter-site','exp-filter-range'].forEach(id=>{
+  document.addEventListener('input', (ev)=>{ if(ev.target && ev.target.id===id) renderExpenses(); });
+  document.addEventListener('change', (ev)=>{ if(ev.target && ev.target.id===id) renderExpenses(); });
+});
+
+
+
 /* ============================= INIT ============================= */
 async function init(){
   document.getElementById('brand-logo-img').src = LOGO_DATA_URI;
@@ -3816,6 +4141,9 @@ async function init(){
   renderLeads();
   updateTaskNavBadge();
   updateInventoryNavBadge();
+  if(!state.expenses) state.expenses = [];
+  if(!state.nextExpenseId) state.nextExpenseId = (state.expenses.reduce((m,e)=>Math.max(m,e.id||0),0)||0)+1;
+  updateExpTodayBadge();
 }
 init();
 
