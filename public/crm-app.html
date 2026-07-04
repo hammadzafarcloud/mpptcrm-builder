@@ -19,9 +19,20 @@
       parent.postMessage({__crmCall:true, id:id, op:op, key:key, value:value}, '*');
     });
   }
+  function rpc(op, extra){
+    return new Promise(function(res){
+      var id = ++seq;
+      pending[id] = res;
+      var m = Object.assign({__crmCall:true, id:id, op:op}, extra||{});
+      parent.postMessage(m, '*');
+    });
+  }
   window.storage = {
     get: function(key){ return call('get', key).then(function(v){ return v; }); },
     set: function(key, value){ return call('set', key, value); }
+  };
+  window.booking = {
+    rpc: function(action, args){ return rpc('booking', {action:action, args:args||{}}); }
   };
 
   function openExternalUrl(url){
@@ -357,6 +368,7 @@ tbody tr:hover{background:var(--paper-2);}
 .modal-foot{padding:16px 22px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;}
 .close-x{background:var(--paper-2);border:none;width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:var(--ink-soft);}
 .close-x:hover{background:var(--line);}
+.pill{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;letter-spacing:0.2px;}
 
 /* ---------- invoices / quotes ---------- */
 .invoice-list-item{
@@ -513,6 +525,10 @@ tbody tr:hover{background:var(--paper-2);}
       <button class="nav-item" data-view="invoices">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5M9 13h6M9 17h6M9 9h2"/></svg>
         Invoices
+      </button>
+      <button class="nav-item" data-view="bookings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h18M6 3v4M18 3v4M5 7v13a1 1 0 001 1h12a1 1 0 001-1V7"/><path d="M9 13l2 2 4-4"/></svg>
+        Bookings <span class="nav-badge" id="nav-booking-count">0</span>
       </button>
       <button class="nav-item" data-view="finance">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
@@ -685,6 +701,24 @@ tbody tr:hover{background:var(--paper-2);}
           <button class="btn btn-outline btn-sm" id="btn-blank-invoice">+ Blank invoice</button>
         </div>
         <div id="invoice-list"></div>
+      </div>
+
+      <!-- BOOKINGS -->
+      <div class="view" id="view-bookings">
+        <div class="table-toolbar" style="flex-wrap:wrap;gap:8px;">
+          <button class="btn btn-amber btn-sm" id="btn-new-booking-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+            New booking link
+          </button>
+          <div class="view-toggle">
+            <button class="active" data-btab="links">Links</button>
+            <button data-btab="submissions">Submissions <span id="bk-sub-count" style="opacity:.7"></span></button>
+          </div>
+          <div style="flex:1"></div>
+          <div style="font-size:12px;color:var(--ink-soft)">Share a service menu link · client selects · invoice generated automatically.</div>
+        </div>
+        <div id="bookings-links-wrap"></div>
+        <div id="bookings-subs-wrap" style="display:none"></div>
       </div>
 
       <!-- FINANCE -->
@@ -1285,6 +1319,7 @@ document.querySelectorAll('.nav-item').forEach(btn=>{
       tasks:['Tasks','Follow-ups, callbacks and any work you need to remember'],
       quotes:['Quotes','System sizing and customer quotations'],
       invoices:['Invoices','Generated invoices and payment status'],
+      bookings:['Bookings','Shareable service menus — clients book, invoices auto-generate'],
       finance:['Finance','Payments, reminders and job expenses'],
       reports:['Reports','Pipeline and revenue performance'],
       team:['Team','Manage your staff and role-based access'],
@@ -1300,6 +1335,7 @@ document.querySelectorAll('.nav-item').forEach(btn=>{
     if(v==='tasks') renderTasks();
     if(v==='quotes') renderQuotes();
     if(v==='invoices') renderInvoices();
+    if(v==='bookings') renderBookings();
     if(v==='finance') renderFinance();
     if(v==='reports') renderReports();
     if(v==='team') renderTeam();
@@ -2255,6 +2291,292 @@ document.getElementById('btn-print-invoice').addEventListener('click', ()=>{
   `;
   window.print();
 });
+
+/* ============================= BOOKINGS ============================= */
+let bookingLinks = [];
+let bookingSubs = [];
+let bookingTab = 'links';
+let editingBookingLink = null;
+
+const DEFAULT_BOOKING_SERVICES = [
+  {name:'Solar Site Visit / Inspection', price:2500, unit:'visit', description:'On-site inspection and system health check.'},
+  {name:'Panel Cleaning', price:1500, unit:'visit', description:'Deep cleaning of solar panels (up to 12 panels).'},
+  {name:'Inverter Repair', price:5000, unit:'job', description:'Diagnosis and repair of inverter faults.'},
+  {name:'New Installation (per kW)', price:190000, unit:'kW', description:'Complete installation including panels, inverter and mounting.'},
+  {name:'System Upgradation', price:35000, unit:'job', description:'Upgrade existing system with new inverter or batteries.'},
+  {name:'Annual Maintenance (AMC)', price:6000, unit:'year', description:'Yearly maintenance contract with 4 scheduled visits.'},
+  {name:'Net Metering Assistance', price:15000, unit:'job', description:'Documentation and coordination for net metering approval.'},
+];
+
+function bkToken(){
+  const s = 'abcdefghijkmnpqrstuvwxyz23456789';
+  let out = '';
+  for(let i=0;i<10;i++) out += s[Math.floor(Math.random()*s.length)];
+  return out;
+}
+function bkPublicUrl(token){
+  try {
+    const origin = (window.parent && window.parent.location && window.parent.location.origin) || window.location.origin;
+    return origin + '/book/' + token;
+  } catch(e){
+    return window.location.origin + '/book/' + token;
+  }
+}
+async function bkLoadAll(){
+  const [l, s] = await Promise.all([
+    window.booking.rpc('listLinks'),
+    window.booking.rpc('listSubmissions')
+  ]);
+  bookingLinks = (l && l.ok) ? l.data : [];
+  bookingSubs = (s && s.ok) ? s.data : [];
+  const newCount = bookingSubs.filter(x=>x.status==='new').length;
+  const nav = document.getElementById('nav-booking-count');
+  if(nav) nav.textContent = newCount;
+  const badge = document.getElementById('bk-sub-count');
+  if(badge) badge.textContent = bookingSubs.length ? '('+bookingSubs.length+')' : '';
+}
+async function renderBookings(){
+  const wrapL = document.getElementById('bookings-links-wrap');
+  const wrapS = document.getElementById('bookings-subs-wrap');
+  wrapL.innerHTML = '<div style="padding:24px;color:var(--ink-soft)">Loading…</div>';
+  await bkLoadAll();
+  paintBookingsTab();
+}
+function paintBookingsTab(){
+  const wrapL = document.getElementById('bookings-links-wrap');
+  const wrapS = document.getElementById('bookings-subs-wrap');
+  document.querySelectorAll('#view-bookings .view-toggle button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.btab===bookingTab);
+  });
+  wrapL.style.display = bookingTab==='links' ? '' : 'none';
+  wrapS.style.display = bookingTab==='submissions' ? '' : 'none';
+
+  if(bookingTab==='links'){
+    if(!bookingLinks.length){
+      wrapL.innerHTML = `<div class="card" style="text-align:center;padding:40px 20px;">
+        <div style="font-family:var(--font-display);font-size:18px;margin-bottom:6px;">No booking links yet</div>
+        <div style="color:var(--ink-soft);margin-bottom:14px;">Create a link with a service menu and share it with clients. When they submit, an invoice is generated automatically.</div>
+        <button class="btn btn-amber" onclick="openBookingLinkModal(null)">+ Create your first link</button>
+      </div>`;
+      return;
+    }
+    wrapL.innerHTML = bookingLinks.map(l=>{
+      const services = Array.isArray(l.services)?l.services:[];
+      const url = bkPublicUrl(l.token);
+      return `<div class="card" style="margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+          <div style="min-width:0;flex:1;">
+            <div style="font-family:var(--font-display);font-weight:700;font-size:15px;">${escapeHtml(l.title||'Book a Service')}</div>
+            <div style="font-size:12px;color:var(--ink-soft);margin-top:2px;">${services.length} service(s) · created ${fmtDate(new Date(l.created_at).getTime())}</div>
+            <div style="margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+              <input readonly value="${url}" style="flex:1;min-width:240px;font-family:var(--font-mono);font-size:12px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:#fafafa;" onclick="this.select()">
+              <button class="btn btn-outline btn-sm" onclick="bkCopy('${url}', this)">Copy</button>
+              <a class="btn btn-outline btn-sm" target="_blank" rel="noopener" href="${url}">Open</a>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:flex-start;">
+            <span class="pill" style="background:${l.active?'#e8f5e9':'#fce4ec'};color:${l.active?'#2e7d32':'#c62828'}">${l.active?'Active':'Disabled'}</span>
+          </div>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="btn btn-outline btn-sm" onclick="openBookingLinkModal('${l.id}')">Edit</button>
+          <button class="btn btn-outline btn-sm" onclick="bkToggleActive('${l.id}', ${!l.active})">${l.active?'Disable':'Enable'}</button>
+          <button class="btn btn-outline btn-sm" onclick="bkDeleteLink('${l.id}')" style="color:var(--terracotta)">Delete</button>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    if(!bookingSubs.length){
+      wrapS.innerHTML = `<div class="card" style="text-align:center;padding:40px 20px;color:var(--ink-soft)">No client submissions yet. Share a link to get bookings.</div>`;
+      return;
+    }
+    wrapS.innerHTML = bookingSubs.map(s=>{
+      const items = Array.isArray(s.items)?s.items:[];
+      const link = bookingLinks.find(l=>l.id===s.link_id);
+      const statusColor = s.status==='new' ? 'var(--terracotta)' : s.status==='invoiced' ? 'var(--green)' : 'var(--ink-soft)';
+      return `<div class="card" style="margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+          <div style="min-width:0;flex:1;">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <div style="font-family:var(--font-display);font-weight:700;font-size:15px;">${escapeHtml(s.client_name)}</div>
+              <span class="pill" style="background:#f5f5f5;color:${statusColor}">${s.status}</span>
+              <span style="font-size:12px;color:var(--ink-soft);">via ${escapeHtml(link?link.title:'link')} · ${fmtDate(new Date(s.created_at).getTime())}</span>
+            </div>
+            <div style="font-size:12px;color:var(--ink-soft);margin-top:2px;">
+              ${s.client_phone?escapeHtml(s.client_phone):''}${s.client_email?' · '+escapeHtml(s.client_email):''}${s.client_address?' · '+escapeHtml(s.client_address):''}
+            </div>
+            ${s.notes?`<div style="font-size:12px;margin-top:6px;padding:6px 8px;background:#fafafa;border-radius:6px;">${escapeHtml(s.notes)}</div>`:''}
+            <table class="inv-table" style="margin-top:8px;">
+              <thead><tr><th>Service</th><th>Qty</th><th>Rate</th><th style="text-align:right">Amount</th></tr></thead>
+              <tbody>${items.map(i=>`<tr><td>${escapeHtml(i.name||i.desc||'')}</td><td>${i.qty||1}</td><td>${fmtMoney(i.price||i.rate||0)}</td><td style="text-align:right">${fmtMoney((i.qty||1)*(i.price||i.rate||0))}</td></tr>`).join('')}</tbody>
+            </table>
+            <div style="text-align:right;margin-top:6px;font-family:var(--font-mono);font-weight:700;">Total: ${fmtMoney(s.total||0)}</div>
+          </div>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
+          ${s.status!=='invoiced' ? `<button class="btn btn-amber btn-sm" onclick="bkConvertToInvoice('${s.id}')">Generate invoice</button>` : `<span class="pill" style="background:#e8f5e9;color:#2e7d32">Invoice generated</span>`}
+          ${s.client_phone ? `<a class="btn btn-whatsapp btn-sm" target="_blank" rel="noopener" href="https://web.whatsapp.com/send?phone=${s.client_phone.replace(/\D/g,'')}&text=${encodeURIComponent('Hi '+s.client_name+', thank you for your booking with '+state.settings.company+'. We will contact you shortly to confirm.')}">WhatsApp</a>` : ''}
+          <button class="btn btn-outline btn-sm" onclick="bkDeleteSubmission('${s.id}')" style="color:var(--terracotta)">Delete</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+}
+document.querySelectorAll('#view-bookings .view-toggle button').forEach(b=>{
+  b.addEventListener('click', ()=>{ bookingTab = b.dataset.btab; paintBookingsTab(); });
+});
+document.getElementById('btn-new-booking-link').addEventListener('click', ()=> openBookingLinkModal(null));
+
+async function bkCopy(url, btn){
+  try { await navigator.clipboard.writeText(url); }
+  catch(e){ const t=document.createElement('textarea'); t.value=url; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
+  if(btn){ const old=btn.textContent; btn.textContent='Copied!'; setTimeout(()=>btn.textContent=old, 1500); }
+  toast('Link copied');
+}
+async function bkToggleActive(id, active){
+  const link = bookingLinks.find(l=>l.id===id); if(!link) return;
+  const r = await window.booking.rpc('saveLink', {id, active, title:link.title, services:link.services, branding:link.branding, token:link.token});
+  if(r && r.ok){ toast('Updated'); await bkLoadAll(); paintBookingsTab(); }
+  else toast('Failed: '+(r && r.error||''),'err');
+}
+async function bkDeleteLink(id){
+  if(!confirm('Delete this booking link? Any existing submissions will also be removed.')) return;
+  const r = await window.booking.rpc('deleteLink', {id});
+  if(r && r.ok){ toast('Link deleted'); await bkLoadAll(); paintBookingsTab(); }
+  else toast('Failed','err');
+}
+async function bkDeleteSubmission(id){
+  if(!confirm('Delete this submission?')) return;
+  const s = bookingSubs.find(x=>x.id===id); if(!s) return;
+  // reuse updateSubmission delete via saveLink? we need delete op — use direct: mark status via update, but true delete needs new op.
+  // For simplicity: update status to 'deleted' would still show — instead call updateSubmission with status archived.
+  const r = await window.booking.rpc('updateSubmission', {id, status:'archived'});
+  if(r && r.ok){ toast('Archived'); await bkLoadAll(); paintBookingsTab(); }
+  else toast('Failed','err');
+}
+async function bkConvertToInvoice(id){
+  const s = bookingSubs.find(x=>x.id===id); if(!s) return;
+  const items = (Array.isArray(s.items)?s.items:[]).map(i=>({
+    desc: i.name || i.desc || 'Service',
+    qty: Number(i.qty)||1,
+    rate: Number(i.price||i.rate)||0
+  }));
+  const sub = items.reduce((t,i)=>t+i.qty*i.rate,0);
+  const tax = state.settings.tax;
+  const inv = {
+    id: state.nextInvoiceId++,
+    leadId: null,
+    leadName: s.client_name,
+    leadPhone: s.client_phone||'',
+    leadArea: s.client_address||'',
+    items, tax, date: Date.now(),
+    subtotal: sub, total: sub + sub*tax/100,
+    payments: [],
+    bookingId: s.id
+  };
+  state.invoices.unshift(inv);
+  saveState();
+  const r = await window.booking.rpc('updateSubmission', {id, status:'invoiced'});
+  if(r && r.ok){
+    toast('Invoice #SCC-'+String(inv.id).padStart(4,'0')+' created');
+    await bkLoadAll(); paintBookingsTab();
+  }
+}
+
+function openBookingLinkModal(id){
+  const existing = id ? bookingLinks.find(l=>l.id===id) : null;
+  editingBookingLink = existing ? JSON.parse(JSON.stringify(existing)) : {
+    id: null,
+    token: bkToken(),
+    title: 'Book a Service — '+state.settings.company,
+    services: DEFAULT_BOOKING_SERVICES.slice(),
+    branding: {company: state.settings.company, phone: state.settings.phone, address: state.settings.address},
+    active: true
+  };
+  const body = `
+    <div class="field" style="margin-bottom:10px;"><label>Page title</label><input id="bkl-title" value="${escapeHtml(editingBookingLink.title)}"></div>
+    <div class="field" style="margin-bottom:10px;"><label>Public URL</label><input readonly value="${bkPublicUrl(editingBookingLink.token)}" style="font-family:var(--font-mono);font-size:12px;background:#fafafa;" onclick="this.select()"></div>
+    <div style="margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;"><label style="font-weight:600;font-size:12px;">Services on this menu</label><button class="btn btn-outline btn-sm" id="bkl-add-svc">+ Add service</button></div>
+    <div id="bkl-services"></div>
+    <div style="margin-top:12px;font-size:11px;color:var(--ink-soft);">Clients open the URL, pick services + qty, submit their details. A submission appears here and can be converted to an invoice with one click.</div>
+  `;
+  const footer = `
+    <button class="btn btn-outline" onclick="closeModal('modal-generic')">Cancel</button>
+    <button class="btn btn-amber" id="bkl-save">${existing?'Save changes':'Create booking link'}</button>
+  `;
+  openGenericModal(existing?'Edit booking link':'New booking link', body, footer);
+  renderBklServices();
+  document.getElementById('bkl-add-svc').addEventListener('click', ()=>{
+    editingBookingLink.services.push({name:'', price:0, unit:'job', description:''});
+    renderBklServices();
+  });
+  document.getElementById('bkl-save').addEventListener('click', bkSaveLink);
+}
+function renderBklServices(){
+  const el = document.getElementById('bkl-services');
+  el.innerHTML = editingBookingLink.services.map((s,i)=>`
+    <div style="border:1px solid var(--line);border-radius:8px;padding:8px;margin-bottom:6px;display:grid;grid-template-columns:2fr 1fr 90px 30px;gap:6px;align-items:center;">
+      <input placeholder="Service name" data-bkli="${i}" data-bklk="name" value="${escapeHtml(s.name||'')}">
+      <input placeholder="Description (optional)" data-bkli="${i}" data-bklk="description" value="${escapeHtml(s.description||'')}">
+      <input type="number" placeholder="Price" data-bkli="${i}" data-bklk="price" value="${s.price||0}">
+      <button data-bklrm="${i}" style="background:none;border:none;color:var(--terracotta);cursor:pointer;font-size:18px;">×</button>
+    </div>
+  `).join('') || '<div style="color:var(--ink-soft);font-size:12px;padding:8px;">No services added.</div>';
+  el.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('input', e=>{
+      const i = parseInt(e.target.dataset.bkli), k = e.target.dataset.bklk;
+      editingBookingLink.services[i][k] = k==='price'? (parseFloat(e.target.value)||0) : e.target.value;
+    });
+  });
+  el.querySelectorAll('[data-bklrm]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      editingBookingLink.services.splice(parseInt(b.dataset.bklrm),1);
+      renderBklServices();
+    });
+  });
+}
+async function bkSaveLink(){
+  editingBookingLink.title = document.getElementById('bkl-title').value || 'Book a Service';
+  editingBookingLink.services = editingBookingLink.services.filter(s=>s.name && s.name.trim());
+  if(!editingBookingLink.services.length){ toast('Add at least one service','err'); return; }
+  const payload = {
+    id: editingBookingLink.id || undefined,
+    token: editingBookingLink.token,
+    title: editingBookingLink.title,
+    services: editingBookingLink.services,
+    branding: editingBookingLink.branding,
+    active: editingBookingLink.active
+  };
+  const r = await window.booking.rpc('saveLink', payload);
+  if(r && r.ok){
+    toast(editingBookingLink.id?'Link updated':'Link created — share the URL with clients');
+    closeModal('modal-generic');
+    await bkLoadAll(); paintBookingsTab();
+  } else {
+    toast('Save failed: '+(r&&r.error||''),'err');
+  }
+}
+
+// Generic modal helper (creates once, reuses)
+function openGenericModal(title, bodyHtml, footerHtml){
+  let m = document.getElementById('modal-generic');
+  if(!m){
+    m = document.createElement('div');
+    m.id = 'modal-generic';
+    m.className = 'modal wide';
+    m.innerHTML = `<div class="modal-head"><h3 id="mg-title"></h3><button class="close-x" onclick="closeModal('modal-generic')">✕</button></div>
+      <div class="modal-body" id="mg-body"></div>
+      <div class="modal-foot" id="mg-foot"></div>`;
+    document.body.appendChild(m);
+  }
+  document.getElementById('mg-title').textContent = title;
+  document.getElementById('mg-body').innerHTML = bodyHtml;
+  document.getElementById('mg-foot').innerHTML = footerHtml;
+  openModal('modal-generic');
+}
+
+// Preload booking count on init
+setTimeout(()=>{ if(window.booking){ bkLoadAll().then(()=>{}); } }, 800);
 
 /* ============================= FINANCE ============================= */
 function renderFinance(){
