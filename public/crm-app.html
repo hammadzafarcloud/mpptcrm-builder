@@ -4135,6 +4135,9 @@ async function init(){
   renderLeads();
   updateTaskNavBadge();
   updateInventoryNavBadge();
+  if(!state.expenses) state.expenses = [];
+  if(!state.nextExpenseId) state.nextExpenseId = (state.expenses.reduce((m,e)=>Math.max(m,e.id||0),0)||0)+1;
+  updateExpTodayBadge();
 }
 init();
 
