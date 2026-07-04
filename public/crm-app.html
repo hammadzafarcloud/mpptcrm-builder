@@ -2562,18 +2562,16 @@ function openGenericModal(title, bodyHtml, footerHtml){
   if(!m){
     m = document.createElement('div');
     m.id = 'modal-generic';
-    m.className = 'modal';
-    m.innerHTML = `<div class="modal-box" style="max-width:640px;">
-      <div class="modal-head"><h2 id="mg-title"></h2><button class="modal-close" onclick="closeModal('modal-generic')">×</button></div>
+    m.className = 'modal wide';
+    m.innerHTML = `<div class="modal-head"><h3 id="mg-title"></h3><button class="close-x" onclick="closeModal('modal-generic')">✕</button></div>
       <div class="modal-body" id="mg-body"></div>
-      <div class="modal-foot" id="mg-foot"></div>
-    </div>`;
+      <div class="modal-foot" id="mg-foot"></div>`;
     document.body.appendChild(m);
   }
   document.getElementById('mg-title').textContent = title;
   document.getElementById('mg-body').innerHTML = bodyHtml;
   document.getElementById('mg-foot').innerHTML = footerHtml;
-  m.classList.add('show');
+  openModal('modal-generic');
 }
 
 // Preload booking count on init
