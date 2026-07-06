@@ -935,6 +935,11 @@ tbody tr:hover{background:var(--paper-2);}
           <p style="font-size:12.5px;color:var(--ink-soft);margin-top:-6px;">This is the pipeline every lead moves through, from first contact to closed job.</p>
           <div id="stage-settings-list" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
         </div>
+        <div class="card" style="margin-top:16px;">
+          <h3>Backup &amp; data</h3>
+          <p style="font-size:12.5px;color:var(--ink-soft);margin-top:-6px;">Download a full snapshot of your CRM as a single JSON file. Keep it somewhere safe — this is a local copy only, nothing is changed in the database.</p>
+          <button class="btn btn-primary btn-sm" id="btn-backup-data" style="margin-top:10px;">⬇ Backup my data</button>
+        </div>
       </div>
 
 </div>
@@ -3056,6 +3061,57 @@ document.getElementById('btn-save-settings').addEventListener('click', ()=>{
   saveState();
   document.querySelector('.brand-text .name').textContent = state.settings.company;
   toast('Settings saved');
+});
+
+document.getElementById('btn-backup-data').addEventListener('click', async ()=>{
+  const btn = document.getElementById('btn-backup-data');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Preparing backup…';
+  let bookingLinksData = [], bookingSubsData = [];
+  try {
+    if (window.booking && window.booking.rpc) {
+      const [l, s] = await Promise.all([
+        window.booking.rpc('listLinks').catch(()=>null),
+        window.booking.rpc('listSubmissions').catch(()=>null),
+      ]);
+      if (l && l.ok) bookingLinksData = l.data || [];
+      if (s && s.ok) bookingSubsData = s.data || [];
+    }
+  } catch(e) { console.warn('booking backup failed', e); }
+
+  const payload = {
+    __type: 'solar-care-crm-backup',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    company: (state.settings && state.settings.company) || 'Solar Care CRM',
+    data: {
+      leads: state.leads || [],
+      quotes: state.quotes || [],
+      invoices: state.invoices || [],
+      visits: state.visits || [],
+      tasks: state.tasks || [],
+      team: state.team || [],
+      inventory: state.inventory || [],
+      stockMoves: state.stockMoves || [],
+      expenses: state.expenses || [],
+      settings: state.settings || {},
+      bookingLinks: bookingLinksData,
+      bookingSubmissions: bookingSubsData,
+    }
+  };
+
+  const d = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  const fname = `solar-care-crm-backup-${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}.json`;
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = fname;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+
+  btn.disabled = false; btn.textContent = orig;
+  toast('Backup downloaded: ' + fname);
 });
 
 /* ============================= TASKS ============================= */
