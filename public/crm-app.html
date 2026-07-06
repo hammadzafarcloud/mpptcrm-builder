@@ -3063,6 +3063,57 @@ document.getElementById('btn-save-settings').addEventListener('click', ()=>{
   toast('Settings saved');
 });
 
+document.getElementById('btn-backup-data').addEventListener('click', async ()=>{
+  const btn = document.getElementById('btn-backup-data');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Preparing backup…';
+  let bookingLinksData = [], bookingSubsData = [];
+  try {
+    if (window.booking && window.booking.rpc) {
+      const [l, s] = await Promise.all([
+        window.booking.rpc('listLinks').catch(()=>null),
+        window.booking.rpc('listSubmissions').catch(()=>null),
+      ]);
+      if (l && l.ok) bookingLinksData = l.data || [];
+      if (s && s.ok) bookingSubsData = s.data || [];
+    }
+  } catch(e) { console.warn('booking backup failed', e); }
+
+  const payload = {
+    __type: 'solar-care-crm-backup',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    company: (state.settings && state.settings.company) || 'Solar Care CRM',
+    data: {
+      leads: state.leads || [],
+      quotes: state.quotes || [],
+      invoices: state.invoices || [],
+      visits: state.visits || [],
+      tasks: state.tasks || [],
+      team: state.team || [],
+      inventory: state.inventory || [],
+      stockMoves: state.stockMoves || [],
+      expenses: state.expenses || [],
+      settings: state.settings || {},
+      bookingLinks: bookingLinksData,
+      bookingSubmissions: bookingSubsData,
+    }
+  };
+
+  const d = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  const fname = `solar-care-crm-backup-${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}.json`;
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = fname;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+
+  btn.disabled = false; btn.textContent = orig;
+  toast('Backup downloaded: ' + fname);
+});
+
 /* ============================= TASKS ============================= */
 let editingTaskId = null;
 
